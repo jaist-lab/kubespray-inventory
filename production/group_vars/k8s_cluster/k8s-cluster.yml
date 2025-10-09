@@ -102,3 +102,22 @@ kubeadm_join_timeout: 600s
 
 ## nginx-proxy無効化（マルチマスター構成でも直接接続）
 loadbalancer_apiserver_localhost: false
+
+## マルチマスター構成のための証明書アップロード設定（重要）
+kubeadm_init_phases:
+  - "preflight"
+  - "certs"
+  - "kubeconfig"
+  - "etcd"
+  - "control-plane"
+  - "upload-config"
+  - "upload-certs"
+  - "bootstrap-token"
+  - "addon"
+
+# 証明書の自動アップロード有効化
+kubeadm_upload_certs: true
+
+# Control Plane join時のリトライ設定
+kubeadm_control_plane_join_retries: 5
+kubeadm_control_plane_join_delay: 30
