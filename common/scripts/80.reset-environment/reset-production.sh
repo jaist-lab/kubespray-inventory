@@ -3,54 +3,54 @@
 
 set -e
 
-INVENTORY="../../../production/hosts.yml"
+INVENTORY="~/kubernetes/kubespray/inventory/production/hosts.yml"
 
 echo "=========================================="
-echo "Production環境 安全リセット"
+echo "Step 1: 完全リセット"
 echo "=========================================="
-echo ""
+ansible-playbook -i ${INVENTORY}  \
+    --become \
+    --become-user=root \
+    reset.yml
 
-# UFW一時停止
-echo "[1/7] UFW一時停止..."
-ansible -i ${INVENTORY} all --become -m systemd -a "name=ufw state=stopped" || true
-
-# サービス停止
-echo ""
-echo "[2/7] サービス停止..."
-ansible -i ${INVENTORY} all --become -m systemd -a "name=kubelet state=stopped" || true
-ansible -i ${INVENTORY} all --become -m systemd -a "name=etcd state=stopped" || true
-
-# コンテナ削除
-echo ""
-echo "[3/7] コンテナ削除..."
-ansible -i ${INVENTORY} all --become -m shell -a "crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock stop \$(crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock ps -q) 2>/dev/null || true"
-ansible -i ${INVENTORY} all --become -m shell -a "crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock rm \$(crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock ps -a -q) 2>/dev/null || true"
-ansible -i ${INVENTORY} all --become -m shell -a "crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock stopp \$(crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock pods -q) 2>/dev/null || true"
-ansible -i ${INVENTORY} all --become -m shell -a "crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock rmp \$(crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock pods -q) 2>/dev/null || true"
-
-# Kubernetes設定削除
-echo ""
-echo "[4/7] Kubernetes設定削除..."
-ansible -i ${INVENTORY} all --become -m shell -a "rm -rf /etc/kubernetes/manifests/* /etc/kubernetes/*.conf /etc/kubernetes/ssl/* /etc/kubernetes/pki/* /var/lib/kubelet/* /var/lib/etcd/* /etc/cni/net.d/* /opt/cni/bin/*"
-
-# containerd再起動
-echo ""
-echo "[5/7] containerd再起動..."
-ansible -i ${INVENTORY} all --become -m systemd -a "name=containerd state=restarted"
-
-# UFW再起動
-echo ""
-echo "[6/7] UFW再起動..."
-ansible -i ${INVENTORY} all --become -m systemd -a "name=ufw state=started enabled=yes"
-
-# 確認
-echo ""
-echo "[7/7] クリーンアップ確認..."
-ansible -i ${INVENTORY} all --become -m shell -a "crictl --runtime-endpoint unix:///var/run/containerd/containerd.sock ps -a | wc -l"
-
+# 2. 全ての証明書とKubernetes設定を削除
 echo ""
 echo "=========================================="
-echo "✓ リセット完了"
+echo "Step 2: 証明書とKubernetes設定を削除"
+echo "=========================================="
+for host in master01 master02 master03 node01 node02 node03; do
+    echo "Cleaning $host..."
+    ssh jaist-lab@$host "sudo rm -rf /etc/kubernetes/ /etc/ssl/etcd/ /var/lib/etcd/ /var/lib/kubelet/ /etc/cni/"
+done
+
+
+# 3. 全ノード再起動
+echo ""
+echo "=========================================="
+echo "Step 3: 全ノード再起動"
+echo "=========================================="
+ansible -i ${INVENTORY}  all -become -a "reboot"
+
+# 待機
+echo "Waiting 180 seconds for nodes to restart..."
+sleep 180
+
+# 4. SSH接続確認
+echo ""
+echo "=========================================="
+echo "Step 4: SSH接続確認"
+echo "=========================================="
+for host in master01 master02 master03 node01 node02 node03; do
+    if ssh -o ConnectTimeout=5 jaist-lab@$host "hostname" &>/dev/null; then
+        echo "✓ $host: OK"
+    else
+        echo "✗ $host: FAILED"
+    fi
+done
+
+echo ""
+echo "=========================================="
+echo "✓ リセット完了(Production)"
 echo "=========================================="
 
 # 全ノード再起動
