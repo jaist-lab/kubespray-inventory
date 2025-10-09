@@ -1,0 +1,28 @@
+---
+# Calico version
+calico_version: "3.28.0"
+calico_cni_version: "3.28.0"
+calico_policy_version: "3.28.0"
+calico_typha_version: "3.28.0"
+calicoctl_version: "3.28.0"
+
+# Backend設定
+calico_datastore: "kdd"
+calico_network_backend: vxlan
+
+# Encapsulation
+calico_ipip_mode: 'Never'
+calico_vxlan_mode: 'Always'
+
+# MTU settings
+calico_mtu: 1450
+
+# IP autodetection
+calico_ip_auto_method: "first-found"
+
+# Felix configuration
+calico_felix_prometheusmetricsenabled: true
+
+# IP Pool
+calico_pool_cidr: "{{ kube_pods_subnet }}"
+calico_pool_vxlan_mode: "{{ calico_vxlan_mode }}"

@@ -1,0 +1,80 @@
+---
+# Calico version (Kubespray v2.28.0推奨)
+calico_version: "3.28.0"
+
+# Calico CNI version
+calico_cni_version: "3.28.0"
+
+# Calico Policy Controller version
+calico_policy_version: "3.28.0"
+
+# Calico Typha version
+calico_typha_version: "3.28.0"
+
+# Calicoctl version
+calicoctl_version: "3.28.0"
+
+# Backend設定
+calico_datastore: "kdd"  # Kubernetes datastore
+
+# Network backend
+calico_network_backend: vxlan  # bird → vxlan に変更（推奨）
+
+# IP-in-IP encapsulation (VXLANと併用しない)
+calico_ipip_mode: 'Never'  # Always → Never
+
+# VXLAN mode (推奨設定)
+calico_vxlan_mode: 'Always'  # Never → Always
+
+# VXLAN設定
+calico_vxlan_vni: 4096
+calico_vxlan_port: 4789
+
+# MTU settings (環境に合わせて調整)
+calico_mtu: 1450
+
+# IP autodetection method
+calico_ip_auto_method: "first-found"
+calico_ip6_auto_method: "first-found"
+
+# Felix configuration
+calico_felix_prometheusmetricsenabled: true
+calico_felix_prometheusmetricsport: 9091
+calico_felix_prometheusg​​oprocessesenabled: true
+
+# BGP設定（VXLANを使用するため無効化）
+peer_with_router: false
+peer_with_calico_rr: false
+
+# ネットワークポリシー
+calico_allow_ip_forwarding: false
+
+# Typha設定（大規模クラスタ用）
+typha_enabled: false
+typha_replicas: 1
+
+# IP Pool設定
+calico_pool_name: "default-pool"
+calico_pool_cidr: "{{ kube_pods_subnet }}"
+calico_pool_blocksize: 26
+calico_pool_ipip_mode: "{{ calico_ipip_mode }}"
+calico_pool_vxlan_mode: "{{ calico_vxlan_mode }}"
+calico_pool_nat_outgoing: true
+
+# IPv6設定
+calico_ipv6pool_enabled: false
+
+# eBPF dataplane (実験的機能)
+calico_bpf_enabled: false
+
+# Windows support
+calico_windows_enabled: false
+
+# API server設定
+calico_apiserver_enabled: false
+
+# Calico node resources
+calico_node_memory_limit: 500M
+calico_node_cpu_limit: 300m
+calico_node_memory_requests: 64M
+calico_node_cpu_requests: 150m

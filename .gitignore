@@ -1,0 +1,40 @@
+# Kubeconfig（機密情報）
+*.kubeconfig
+admin.conf
+config-*
+*.conf
+
+# 認証情報
+**/credentials/
+**/secrets/
+*.key
+*.pem
+*.crt
+!ca.crt
+
+# Ansible
+*.retry
+*.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+
+# Backup files
+*.bak
+*.backup
+
+# Temporary files
+*.tmp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

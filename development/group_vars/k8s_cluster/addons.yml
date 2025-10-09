@@ -1,0 +1,17 @@
+---
+# Metrics Server
+metrics_server_enabled: true
+metrics_server_kubelet_insecure_tls: true
+
+# Ingress Controller
+ingress_nginx_enabled: false
+
+# Cert Manager
+cert_manager_enabled: false
+
+# Dashboard
+dashboard_enabled: true
+dashboard_namespace: "kubernetes-dashboard"
+
+# Helm
+helm_enabled: true

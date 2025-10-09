@@ -1,0 +1,39 @@
+---
+# Metrics Server
+metrics_server_enabled: true
+metrics_server_container_port: 10250
+metrics_server_kubelet_insecure_tls: true
+metrics_server_kubelet_preferred_address_types: "InternalIP,ExternalIP,Hostname"
+
+# Ingress Controller (必要に応じて有効化)
+ingress_nginx_enabled: false
+ingress_nginx_host_network: false
+ingress_publish_status_address: ""
+ingress_nginx_nodeselector:
+  kubernetes.io/os: "linux"
+ingress_nginx_namespace: "ingress-nginx"
+ingress_nginx_insecure_port: 80
+ingress_nginx_secure_port: 443
+
+# Cert Manager
+cert_manager_enabled: false
+cert_manager_namespace: "cert-manager"
+
+# Dashboard
+dashboard_enabled: true
+dashboard_namespace: "kubernetes-dashboard"
+dashboard_skip_login: false
+
+# Helm
+helm_enabled: true
+helm_version: 3.15.0
+
+# Registry (Harbor等の内部レジストリ設定)
+registry_enabled: false
+
+# Local Path Provisioner (ローカルストレージ)
+local_path_provisioner_enabled: false
+local_path_provisioner_namespace: "local-path-storage"
+local_path_provisioner_storage_class: "local-path"
+local_path_provisioner_reclaim_policy: Delete
+local_path_provisioner_claim_root: /opt/local-path-provisioner/
