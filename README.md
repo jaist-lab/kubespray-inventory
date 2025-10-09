@@ -45,3 +45,6 @@ ansible-playbook -i inventory/production/hosts.yml cluster.yml
 - Kubernetes: v1.31.3
 - Calico: v3.28.0
 - Kubespray: v2.28.0
+
+## update
+2025.10.09
