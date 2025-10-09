@@ -47,4 +47,4 @@ ansible-playbook -i inventory/production/hosts.yml cluster.yml
 - Kubespray: v2.28.0
 
 ## update
-2025.10.09 v2.0
+2025.10.09 v3.0
