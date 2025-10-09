@@ -79,3 +79,10 @@ kubeadm_upload_certs: true
 # Control Plane join時のリトライ設定
 kubeadm_control_plane_join_retries: 5
 kubeadm_control_plane_join_delay: 30
+
+## 証明書アップロードの強制設定
+kubeadm_certificate_key_auto_renew: false
+kubeadm_init_upload_certs: true
+
+## Control Plane join前に証明書を確実にアップロード
+kubeadm_control_plane_join_wait_for_certs: true
