@@ -2,6 +2,7 @@
 # Development環境の安全なリセット
 
 set -e
+cd ~/kubernetes/kubespray
 
 INVENTORY="~/kubernetes/kubespray/development/production/hosts.yml"
 
