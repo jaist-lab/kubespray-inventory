@@ -10,6 +10,7 @@ echo "=========================================="
 echo "Step 1: 完全リセット"
 echo "=========================================="
 ansible-playbook -i ${INVENTORY}  \
+    --skip-tags=iptables \
     --become \
     --become-user=root \
     reset.yml
