@@ -1,0 +1,90 @@
+---
+# Kubernetes cluster name
+cluster_name: development-cluster
+
+# Kubernetes version (Productionと同じ)
+kube_version: 1.31.3
+
+# Container runtime
+container_manager: containerd
+
+# Kube-proxy mode
+kube_proxy_mode: ipvs
+kube_proxy_strict_arp: true
+
+# CNI plugin
+kube_network_plugin: calico
+
+# Service subnet (Development専用: Productionと重複回避)
+kube_service_addresses: 10.234.0.0/18
+
+# Pod subnet (Development専用: Productionと重複回避)
+kube_pods_subnet: 10.234.64.0/18
+
+# Network plugin settings
+enable_dual_stack_networks: false
+
+# DNS設定
+dns_mode: coredns
+enable_nodelocaldns: true
+
+# Kubelet設定
+kubelet_max_pods: 110
+kube_read_only_port: 0
+
+# 証明書設定
+auto_renew_certificates: true
+
+# Audit log (Development環境では無効化)
+kubernetes_audit: false
+
+# Encryption at rest (Development環境では無効化)
+kube_encrypt_secret_data: false
+
+# Pod Security
+podsecuritypolicy_enabled: false
+
+# Metrics Server
+metrics_server_enabled: true
+
+# Helm
+helm_enabled: true
+
+# kubeconfig配置
+kube_config_dir: /etc/kubernetes
+credentials_dir: "{{ inventory_dir }}/credentials"
+
+### --- マルチマスター構成のための設定 ---
+
+## タイムアウト設定（マルチマスター構成での安定性向上）
+kubeadm_init_timeout: 600s
+kubeadm_join_timeout: 600s
+
+## 高可用性（HA）構成のための設定
+loadbalancer_apiserver_localhost: true
+
+## マルチマスター構成のための証明書アップロード設定（重要）
+kubeadm_init_phases:
+  - "preflight"
+  - "certs"
+  - "kubeconfig"
+  - "etcd"
+  - "control-plane"
+  - "upload-config"
+  - "upload-certs"
+  - "bootstrap-token"
+  - "addon"
+
+# 証明書の自動アップロード有効化
+kubeadm_upload_certs: true
+
+# Control Plane join時のリトライ設定
+kubeadm_control_plane_join_retries: 5
+kubeadm_control_plane_join_delay: 30
+
+## 証明書アップロードの強制設定
+kubeadm_certificate_key_auto_renew: false
+kubeadm_init_upload_certs: true
+
+## Control Plane join前に証明書を確実にアップロード
+kubeadm_control_plane_join_wait_for_certs: true
