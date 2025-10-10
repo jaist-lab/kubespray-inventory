@@ -137,3 +137,11 @@ unsafe_show_logs: false
 
 ## If enabled it will allow kubespray to attempt setup even if the distribution is not supported. For unsupported distributions this can lead to unexpected failures in some cases.
 allow_unsupported_distribution_setup: false
+
+## etcdディレクトリ設定
+etcd_data_dir: /var/lib/etcd
+etcd_config_dir: /etc/ssl/etcd
+etcd_cert_dir: /etc/ssl/etcd/ssl
+
+## ディレクトリ作成を確実に
+etcd_kubeadm_enabled: false

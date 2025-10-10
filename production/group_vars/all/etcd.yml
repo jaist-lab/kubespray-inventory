@@ -14,3 +14,12 @@ etcd_data_dir: /var/lib/etcd
 ## Settings for etcd deployment type
 # Set this to docker if you are using container_manager: docker
 etcd_deployment_type: host
+
+
+## etcdディレクトリ
+etcd_config_dir: /etc/ssl/etcd
+etcd_cert_dir: /etc/ssl/etcd/ssl
+
+## etcdユーザー
+etcd_owner: etcd
+etcd_group: etcd
