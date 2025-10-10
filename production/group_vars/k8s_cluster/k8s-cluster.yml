@@ -128,3 +128,20 @@ kubeadm_init_upload_certs: true
 
 ## Control Plane join前に証明書を確実にアップロード
 kubeadm_control_plane_join_wait_for_certs: true
+
+## 解決策: Kubesprayの設定を修正してetcd証明書を正しく処理
+## etcd証明書の配置設定（重要）
+etcd_cert_dir: "/etc/kubernetes/pki/etcd"
+etcd_cert_alt_names:
+  - "etcd"
+  - "localhost"
+
+## kubeadm証明書アップロードの強制
+kubeadm_init_upload_certs_phase: true
+kubeadm_control_plane_certs_upload: true
+
+## 証明書キーの有効期限を延長
+kubeadm_certificate_key_rotation_enabled: false
+
+## Control Plane join前の待機時間を延長
+kubeadm_control_plane_join_timeout: 1800s
