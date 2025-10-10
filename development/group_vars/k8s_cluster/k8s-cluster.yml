@@ -53,13 +53,15 @@ helm_enabled: true
 # kubeconfig配置
 kube_config_dir: /etc/kubernetes
 credentials_dir: "{{ inventory_dir }}/credentials"
-#
+
+### --- マルチマスター構成のための設定 ---
+
 ## タイムアウト設定（マルチマスター構成での安定性向上）
 kubeadm_init_timeout: 600s
 kubeadm_join_timeout: 600s
 
-## nginx-proxy無効化（マルチマスター構成でも直接接続）
-loadbalancer_apiserver_localhost: false
+## 高可用性（HA）構成のための設定
+loadbalancer_apiserver_localhost: true
 
 ## マルチマスター構成のための証明書アップロード設定（重要）
 kubeadm_init_phases:
