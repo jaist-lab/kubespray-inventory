@@ -4,7 +4,7 @@
 set -e
 cd ~/kubernetes/kubespray
 
-INVENTORY="~/kubernetes/kubespray/development/production/hosts.yml"
+INVENTORY="~/kubernetes/kubespray/inventory/development/hosts.yml"
 
 echo "=========================================="
 echo "Step 1: 完全リセット"
@@ -34,7 +34,7 @@ echo "=========================================="
 ansible -i ${INVENTORY}  all -become -a "reboot"
 
 # 待機
-echo "Waiting 180 seconds for nodes to restart..."
+echo "Waiting 180 seconds for dev-nodes to restart..."
 sleep 180
 
 # 4. SSH接続確認
@@ -52,7 +52,7 @@ done
 
 echo ""
 echo "=========================================="
-echo "✓ リセット完了(Development)" 
+echo "✓ リセット完了(Development)"
 echo "=========================================="
 
 # 全ノード再起動
