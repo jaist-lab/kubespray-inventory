@@ -72,6 +72,10 @@ metrics_server_enabled: true
 # Helm
 helm_enabled: true
 
+# kubectl設定（非推奨パラメータ削除）
+# kubectl_localhost: true  # 削除
+# kubeconfig_localhost: true  # 削除
+
 # kubeconfig配置
 kube_config_dir: /etc/kubernetes
 credentials_dir: "{{ inventory_dir }}/credentials"
@@ -95,14 +99,52 @@ kube_authorization_modes:
 
 ### --- マルチマスター構成のための設定 ---
 
-# ローカルnginxロードバランサーを使用（外部LBなし）
-loadbalancer_apiserver_localhost: true
-loadbalancer_apiserver_type: nginx
-loadbalancer_apiserver_port: 6443
-loadbalancer_apiserver_healthcheck_port: 8081
-
-# タイムアウト設定
+## タイムアウト設定（マルチマスター構成での安定性向上）
 kubeadm_init_timeout: 600s
+kubeadm_join_timeout: 600s
 
-# 証明書の自動アップロード（マルチマスター構成で必須）
+## 高可用性（HA）構成のための設定
+loadbalancer_apiserver_localhost: true
+
+## マルチマスター構成のための証明書アップロード設定（重要）
+kubeadm_init_phases:
+  - "preflight"
+  - "certs"
+  - "kubeconfig"
+  - "etcd"
+  - "control-plane"
+  - "upload-config"
+  - "upload-certs"
+  - "bootstrap-token"
+  - "addon"
+
+# 証明書の自動アップロード有効化
 kubeadm_upload_certs: true
+
+# Control Plane join時のリトライ設定
+kubeadm_control_plane_join_retries: 5
+kubeadm_control_plane_join_delay: 30
+
+## 証明書アップロードの強制設定
+kubeadm_certificate_key_auto_renew: false
+kubeadm_init_upload_certs: true
+
+## Control Plane join前に証明書を確実にアップロード
+kubeadm_control_plane_join_wait_for_certs: true
+
+## 解決策: Kubesprayの設定を修正してetcd証明書を正しく処理
+## etcd証明書の配置設定（重要）
+etcd_cert_dir: "/etc/kubernetes/pki/etcd"
+etcd_cert_alt_names:
+  - "etcd"
+  - "localhost"
+
+## kubeadm証明書アップロードの強制
+kubeadm_init_upload_certs_phase: true
+kubeadm_control_plane_certs_upload: true
+
+## 証明書キーの有効期限を延長
+kubeadm_certificate_key_rotation_enabled: false
+
+## Control Plane join前の待機時間を延長
+kubeadm_control_plane_join_timeout: 1800s
