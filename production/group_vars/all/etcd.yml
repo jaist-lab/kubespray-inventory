@@ -16,10 +16,3 @@ etcd_data_dir: /var/lib/etcd
 etcd_deployment_type: host
 
 
-## etcdディレクトリ
-etcd_config_dir: /etc/ssl/etcd
-etcd_cert_dir: /etc/ssl/etcd/ssl
-
-## etcdユーザー
-etcd_owner: etcd
-etcd_group: etcd
