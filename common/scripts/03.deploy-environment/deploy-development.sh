@@ -35,12 +35,12 @@ echo "[2/4] Inventory検証..."
 ansible-inventory -i "${INVENTORY_DIR}/hosts.yml" --list > /dev/null
 
 # 1. すべてのマスタノードで必要なディレクトリを事前作成
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/production/hosts.yml \
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
   -m shell -a "mkdir -p /etc/ssl/etcd /etc/kubernetes/ssl /etc/kubernetes/pki" \
   --become
 
 # 2. 権限を設定
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/production/hosts.yml \
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
   -m shell -a "chmod 755 /etc/ssl/etcd /etc/kubernetes/ssl" \
   --become
 
