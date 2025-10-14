@@ -1,5 +1,5 @@
 #!/bin/bash
-# Production環境デプロイスクリプト（metrics-server完全対応版）
+# Production環境デプロイスクリプト（v2.28.0対応）
 
 set -e
 
@@ -16,9 +16,6 @@ echo "Inventory Dir: ${INVENTORY_DIR}"
 echo "Kubernetes Version: 1.31.3"
 echo "Calico Version: v3.28.0"
 echo ""
-echo "⭐ kubelet-csr-approver ConfigMap 自動作成: 有効"
-echo "⭐ metrics-server 自動セットアップ: 有効"
-echo ""
 
 # 仮想環境確認
 if [[ "$VIRTUAL_ENV" == "" ]]; then
@@ -27,50 +24,56 @@ if [[ "$VIRTUAL_ENV" == "" ]]; then
     exit 1
 fi
 
-# [1/5] Ansible接続確認
-echo "[1/5] Ansible接続確認..."
+# Ansible接続確認
+echo "[1/4] Ansible接続確認..."
 cd "${KUBESPRAY_DIR}"
 ansible -i "${INVENTORY_DIR}/hosts.yml" all -m ping -o
 
-# [2/5] Inventory検証
+# Inventory検証
 echo ""
-echo "[2/5] Inventory検証..."
-ansible-inventory -i "${INVENTORY_DIR}/hosts.yml" --list > /dev/null
+echo "[2/4] Inventory検証..."
+ansible-inventory -i "${INVENTORY_DIR}/hosts.yml" --list
 
-# [3/5] 必要なディレクトリの事前作成
-echo ""
-echo "[3/5] 必要なディレクトリの事前作成..."
-ansible kube_control_plane -i "${INVENTORY_DIR}/hosts.yml" \
+# 1. すべてのマスタノードで必要なディレクトリを事前作成
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/production/hosts.yml \
   -m shell -a "mkdir -p /etc/ssl/etcd /etc/kubernetes/ssl /etc/kubernetes/pki" \
   --become
 
-ansible kube_control_plane -i "${INVENTORY_DIR}/hosts.yml" \
+# 2. 権限を設定
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/production/hosts.yml \
   -m shell -a "chmod 755 /etc/ssl/etcd /etc/kubernetes/ssl" \
   --become
 
-# [4/5] Kubernetesクラスタデプロイ
+# クラスタデプロイ
 echo ""
-echo "[4/5] Kubernetesクラスタデプロイ開始..."
-echo "⏱  デプロイには約40-60分かかります..."
-echo ""
+echo "[3/4] Kubernetesクラスタデプロイ開始..."
+echo "デプロイには約40-60分かかります..."
 ansible-playbook -i "${INVENTORY_DIR}/hosts.yml" \
     --become \
     --become-user=root \
     -e ansible_user=jaist-lab \
     cluster.yml
 
-# [5/5] Kubeconfig取得
+# Kubeconfig取得（修正版）
 echo ""
-echo "[5/5] Kubeconfig取得..."
+echo "[4/4] Kubeconfig取得..."
 mkdir -p ~/.kube
 
+MASTER_IP="172.16.100.101"
 TEMP_FILE="/tmp/admin.conf.${MASTER_IP}"
 
+# リモートホストでファイルをコピーして権限変更
 ssh jaist-lab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && sudo chown jaist-lab:jaist-lab ${TEMP_FILE} && sudo chmod 644 ${TEMP_FILE}"
+
+# ローカルにコピー
 scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-production
+
+# リモート側の一時ファイル削除
 ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
 
+# Kubeconfig権限設定
 chmod 600 ~/.kube/config-production
+\n# APIサーバーアドレスを修正（重要！）
 sed -i "s|https://127.0.0.1:6443|https://${MASTER_IP}:6443|g" ~/.kube/config-production
 
 # クラスタ確認
@@ -89,7 +92,4 @@ echo "次のコマンドで確認:"
 echo "  export KUBECONFIG=~/.kube/config-production"
 echo "  kubectl get nodes"
 echo "  kubectl get pods -A"
-echo ""
-echo "⭐ 重要: kubelet-server証明書生成とmetrics-server確認"
-echo "  ./post-deploy-metrics-server.sh を実行してください"
 echo "=========================================="
