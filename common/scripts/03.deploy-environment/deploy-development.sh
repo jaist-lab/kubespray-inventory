@@ -1,96 +1,149 @@
 #!/bin/bash
-# Development環境デプロイスクリプト（v2.28.0対応・APIアドレス修正版）
+# デプロイ後のmetrics-server自動セットアップ
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBESPRAY_DIR="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
-INVENTORY_DIR="${KUBESPRAY_DIR}/inventory/development"
-MASTER_IP="172.16.100.121"
+echo "=========================================="
+echo "Post-Deploy: Metrics Server Setup"
+echo "=========================================="
 
-echo "=========================================="
-echo "Development Kubernetes Cluster デプロイ"
-echo "=========================================="
-echo "Kubespray Dir: ${KUBESPRAY_DIR}"
-echo "Inventory Dir: ${INVENTORY_DIR}"
-echo "Kubernetes Version: 1.31.3"
-echo "Calico Version: 3.28.0"
+# 環境選択
+echo "セットアップする環境を選択してください:"
+echo "  1) Production"
+echo "  2) Development"
+read -p "選択 (1/2): " ENV_CHOICE
+
+case $ENV_CHOICE in
+    1)
+        export KUBECONFIG=~/.kube/config-production
+        NODES="101 102 103 111 112 113"
+        NODE_PREFIX="172.16.100."
+        ENV_NAME="Production"
+        ;;
+    2)
+        export KUBECONFIG=~/.kube/config-development
+        NODES="121 122 123 131 132 133"
+        NODE_PREFIX="172.16.100."
+        ENV_NAME="Development"
+        ;;
+    *)
+        echo "無効な選択です"
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "環境: ${ENV_NAME}"
 echo ""
 
-# 仮想環境確認
-if [[ "$VIRTUAL_ENV" == "" ]]; then
-    echo "エラー: Python仮想環境が有効化されていません"
-    echo "実行: source ~/kubernetes/venv/bin/activate"
+# [1/6] kubelet-csr-approver ConfigMap確認
+echo "[1/6] kubelet-csr-approver ConfigMap確認..."
+if kubectl get cm -n kube-system kubelet-csr-approver &>/dev/null; then
+    echo "✓ ConfigMap存在確認"
+    echo ""
+    echo "ConfigMap内容:"
+    kubectl get cm -n kube-system kubelet-csr-approver -o yaml | grep -A 10 "config.yaml:"
+else
+    echo "✗ ConfigMapが存在しません"
+    echo "エラー: デプロイスクリプトが正常に完了していない可能性があります"
     exit 1
 fi
 
-# Ansible接続確認
-echo "[1/4] Ansible接続確認..."
-cd "${KUBESPRAY_DIR}"
-ansible -i "${INVENTORY_DIR}/hosts.yml" all -m ping -o
-
-# Inventory検証
+# [2/6] 既存のDenied CSRを削除
 echo ""
-echo "[2/4] Inventory検証..."
-ansible-inventory -i "${INVENTORY_DIR}/hosts.yml" --list > /dev/null
+echo "[2/6] 既存のDenied CSRをクリーンアップ..."
+DENIED_COUNT=$(kubectl get csr 2>/dev/null | grep -c Denied || echo 0)
+if [ $DENIED_COUNT -gt 0 ]; then
+    echo "Denied CSRを削除中 ($DENIED_COUNT 件)..."
+    kubectl delete csr --all
+    echo "✓ クリーンアップ完了"
+else
+    echo "✓ Denied CSRなし"
+fi
 
-# 1. すべてのマスタノードで必要なディレクトリを事前作成
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
-  -m shell -a "mkdir -p /etc/ssl/etcd /etc/kubernetes/ssl /etc/kubernetes/pki" \
-  --become
-
-# 2. 権限を設定
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
-  -m shell -a "chmod 755 /etc/ssl/etcd /etc/kubernetes/ssl" \
-  --become
-
-# クラスタデプロイ
+# [3/6] 全ノードのkubeletを再起動
 echo ""
-echo "[3/4] Kubernetesクラスタデプロイ開始..."
-echo "デプロイには約40-60分かかります..."
-ansible-playbook -i "${INVENTORY_DIR}/hosts.yml" \
-    --become \
-    --become-user=root \
-    -e ansible_user=jaist-lab \
-    cluster.yml
+echo "[3/6] 全ノードのkubeletを再起動..."
+for node in $NODES; do
+    NODE_IP="${NODE_PREFIX}${node}"
+    echo "  再起動中: ${NODE_IP}"
+    ssh jaist-lab@${NODE_IP} "sudo systemctl restart kubelet" 2>/dev/null || echo "    ⚠ 失敗"
+    sleep 2
+done
 
-# Kubeconfig取得（修正版）
+echo "✓ 全ノードのkubelet再起動完了"
+
+# [4/6] CSR生成待機と承認
 echo ""
-echo "[4/4] Kubeconfig取得..."
-mkdir -p ~/.kube
+echo "[4/6] CSR生成待機と承認..."
+echo "30秒待機..."
+sleep 30
 
-TEMP_FILE="/tmp/admin.conf.${MASTER_IP}"
+kubectl get csr | head -10
 
-# リモートホストでファイルをコピーして権限変更
-ssh jaist-lab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && sudo chown jaist-lab:jaist-lab ${TEMP_FILE} && sudo chmod 644 ${TEMP_FILE}"
+PENDING_COUNT=$(kubectl get csr 2>/dev/null | grep -c Pending || echo 0)
+if [ $PENDING_COUNT -gt 0 ]; then
+    echo "Pending CSRを承認中 ($PENDING_COUNT 件)..."
+    kubectl get csr -o name | xargs kubectl certificate approve
+    echo "✓ CSR承認完了"
+else
+    echo "⚠ Pending CSRが見つかりません"
+    echo "手動で確認してください: kubectl get csr"
+fi
 
-# ローカルにコピー
-scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-development
-
-# リモート側の一時ファイル削除
-ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
-
-# Kubeconfig権限設定
-chmod 600 ~/.kube/config-development
-
-# APIサーバーアドレスを修正（重要！）
-sed -i "s|https://127.0.0.1:6443|https://${MASTER_IP}:6443|g" ~/.kube/config-development
-
-# クラスタ確認
-export KUBECONFIG=~/.kube/config-development
+# [5/6] kubelet-server証明書確認
 echo ""
-echo "ノード状態確認中..."
-kubectl get nodes -o wide
+echo "[5/6] kubelet-server証明書確認..."
+SUCCESS=0
+FAILED=0
 
+for node in $NODES; do
+    NODE_IP="${NODE_PREFIX}${node}"
+    printf "  %-20s " "${NODE_IP}:"
+    
+    if ssh jaist-lab@${NODE_IP} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+        echo "✓ 証明書生成済み"
+        SUCCESS=$((SUCCESS + 1))
+    else
+        echo "✗ 証明書未生成"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# [6/6] metrics-server確認
+echo ""
+echo "[6/6] metrics-server確認..."
+echo "metrics-server Podを再起動..."
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=metrics-server 2>/dev/null || echo "metrics-server Pod未検出"
+
+echo ""
+echo "60秒待機してmetrics-server起動を確認..."
+sleep 60
+
+# 最終確認
 echo ""
 echo "=========================================="
-echo "✓ Development環境デプロイ完了"
+echo "セットアップ結果"
 echo "=========================================="
-echo "Kubeconfig: ~/.kube/config-development"
-echo "API Server: https://${MASTER_IP}:6443"
+echo "証明書生成: 成功 $SUCCESS / 失敗 $FAILED"
 echo ""
-echo "次のコマンドで確認:"
-echo "  export KUBECONFIG=~/.kube/config-development"
-echo "  kubectl get nodes"
-echo "  kubectl get pods -A"
+
+kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server
+
+echo ""
+echo "メトリクス取得テスト:"
+if kubectl top nodes &>/dev/null; then
+    echo "✓ メトリクス取得成功"
+    echo ""
+    kubectl top nodes
+else
+    echo "✗ メトリクス取得失敗"
+    echo ""
+    echo "トラブルシューティング:"
+    echo "  1. CSR状態確認: kubectl get csr"
+    echo "  2. metrics-serverログ: kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server"
+    echo "  3. 手順書「11. トラブルシューティング」を参照"
+fi
+
+echo ""
 echo "=========================================="

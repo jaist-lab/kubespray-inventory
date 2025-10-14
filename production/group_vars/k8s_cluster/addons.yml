@@ -37,3 +37,35 @@ local_path_provisioner_namespace: "local-path-storage"
 local_path_provisioner_storage_class: "local-path"
 local_path_provisioner_reclaim_policy: Delete
 local_path_provisioner_claim_root: /opt/local-path-provisioner/
+
+
+# ========================================
+# kubelet-csr-approver 設定（⭐重要）
+# ========================================
+# kubelet-csr-approverを有効化
+kubelet_csr_approver_enabled: true
+
+# ConfigMap自動作成を有効化
+kubelet_csr_approver_create_configmap: true
+
+# DNS解決バイパス（metrics-server対応に必須）
+kubelet_csr_approver_bypass_dns: true
+
+# ホスト名チェックバイパス（metrics-server対応に必須）
+kubelet_csr_approver_bypass_hostname: true
+
+# CSR承認対象の正規表現
+kubelet_csr_approver_provider_regex: "^system:node:.*"
+
+# 証明書の最大有効期限（1年）
+kubelet_csr_approver_max_expiration: 31536000
+
+# 許可するDNS名（環境に合わせて設定）
+kubelet_csr_approver_allowed_dns_names:
+  - "*.cluster.local"
+  - "master01"
+  - "master02"
+  - "master03"
+  - "node01"
+  - "node02"
+  - "node03"

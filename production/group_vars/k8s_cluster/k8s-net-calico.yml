@@ -40,7 +40,8 @@ calico_ip6_auto_method: "first-found"
 # Felix configuration
 calico_felix_prometheusmetricsenabled: true
 calico_felix_prometheusmetricsport: 9091
-calico_felix_prometheusg​​oprocessesenabled: true
+calico_felix_prometheusgoprocessesenabled: true
+
 
 # BGP設定（VXLANを使用するため無効化）
 peer_with_router: false
