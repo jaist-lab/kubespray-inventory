@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBESPRAY_DIR="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+KUBESPRAY_DIR="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
 INVENTORY_DIR="${KUBESPRAY_DIR}/inventory/production"
 MASTER_IP="172.16.100.101"
 
