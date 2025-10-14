@@ -48,11 +48,6 @@ ansible kube_control_plane -i "${INVENTORY_DIR}/hosts.yml" \
   -m shell -a "chmod 755 /etc/ssl/etcd /etc/kubernetes/ssl" \
   --become
 
-# Ansible Kubernetes collection の依存関係をすべてインストール
-ansible kube_control_plane -i "${INVENTORY_DIR}/hosts.yml" \
-  -m shell -a "pip install kubernetes openshift pyyaml jsonpatch" \
-  --become
-
 # [4/5] Kubernetesクラスタデプロイ
 echo ""
 echo "[4/5] Kubernetesクラスタデプロイ開始..."
