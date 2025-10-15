@@ -1,5 +1,5 @@
 #!/bin/bash
-# Metrics Server有効化スクリプト（Production/Development共通）
+# Metrics Server有効化スクリプト（修正版）
 
 set -e
 
@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 
 # ヘッダー表示
 echo "=========================================="
-echo "Metrics Server有効化スクリプト"
+echo "Metrics Server有効化スクリプト（修正版）"
 echo "=========================================="
 echo ""
 
@@ -124,60 +124,102 @@ echo "新しいCSRの生成を待機中（30秒）..."
 sleep 30
 
 kubectl get csr
-CSR_COUNT=$(kubectl get csr --no-headers | wc -l)
+# 修正: カウント取得を安全に
+CSR_COUNT=$(kubectl get csr --no-headers 2>/dev/null | wc -l | tr -d ' ')
 echo ""
-echo "生成されたCSR数: $CSR_COUNT"
+echo "生成されたCSR数: ${CSR_COUNT}"
 
 echo ""
 echo "CSRの自動承認を待機中（60秒）..."
 sleep 60
 
 kubectl get csr
-APPROVED_COUNT=$(kubectl get csr 2>/dev/null | grep -c "Approved,Issued" || echo "0")
-echo ""
-echo "承認済みCSR: $APPROVED_COUNT / $CSR_COUNT"
+# 修正: カウント取得を安全に
+APPROVED_COUNT=$(kubectl get csr 2>/dev/null | grep "Approved,Issued" | wc -l | tr -d ' ')
+DENIED_COUNT=$(kubectl get csr 2>/dev/null | grep "Denied" | wc -l | tr -d ' ')
+PENDING_COUNT=$(kubectl get csr 2>/dev/null | grep "Pending" | wc -l | tr -d ' ')
 
-if [ $APPROVED_COUNT -eq $CSR_COUNT ] && [ $CSR_COUNT -gt 0 ]; then
-    echo -e "${GREEN}✓ すべてのCSRが自動承認されました${NC}"
+echo ""
+echo "CSR状態サマリー:"
+echo "  承認済み (Approved): ${APPROVED_COUNT}"
+echo "  拒否 (Denied): ${DENIED_COUNT}"
+echo "  保留 (Pending): ${PENDING_COUNT}"
+echo "  合計: ${CSR_COUNT}"
+
+# 修正: 数値比較を安全に実行
+if [ "${CSR_COUNT}" -gt 0 ] 2>/dev/null; then
+    if [ "${APPROVED_COUNT}" -eq "${CSR_COUNT}" ] 2>/dev/null; then
+        echo -e "${GREEN}✓ すべてのCSRが自動承認されました${NC}"
+    else
+        echo -e "${YELLOW}⚠ 一部のCSRが承認されていません${NC}"
+        
+        # Pendingのみ手動承認を試行
+        if [ "${PENDING_COUNT}" -gt 0 ] 2>/dev/null; then
+            echo ""
+            echo "Pending状態のCSRを手動承認します..."
+            kubectl get csr -o name | grep -v "Approved" | xargs -r kubectl certificate approve 2>/dev/null || true
+            sleep 10
+            
+            # 再カウント
+            APPROVED_COUNT=$(kubectl get csr 2>/dev/null | grep "Approved,Issued" | wc -l | tr -d ' ')
+            echo "手動承認後の承認済みCSR: ${APPROVED_COUNT} / ${CSR_COUNT}"
+        fi
+        
+        # Deniedが多い場合は警告
+        if [ "${DENIED_COUNT}" -gt 0 ] 2>/dev/null; then
+            echo -e "${RED}✗ ${DENIED_COUNT}個のCSRが拒否(Denied)されています${NC}"
+            echo ""
+            echo "拒否の原因調査が必要です。次のセクションで詳細を確認します。"
+        fi
+    fi
 else
-    echo -e "${YELLOW}⚠ 一部のCSRが承認されていません。手動承認を試行...${NC}"
-    kubectl get csr -o name | xargs kubectl certificate approve 2>/dev/null || true
-    sleep 10
-    APPROVED_COUNT=$(kubectl get csr 2>/dev/null | grep -c "Approved,Issued" || echo "0")
-    echo "承認済みCSR（手動承認後）: $APPROVED_COUNT / $CSR_COUNT"
+    echo -e "${YELLOW}⚠ CSRが生成されていません${NC}"
 fi
 
 # 証明書確認
 echo ""
 echo "kubelet-server証明書確認:"
+CERT_SUCCESS=0
+CERT_TOTAL=0
 for node in $NODE_IPS; do
+    CERT_TOTAL=$((CERT_TOTAL + 1))
     if ssh jaist-lab@$node "sudo ls /var/lib/kubelet/pki/kubelet-server-current.pem" &>/dev/null; then
         echo -e "${GREEN}✓ $node - 証明書あり${NC}"
+        CERT_SUCCESS=$((CERT_SUCCESS + 1))
     else
         echo -e "${RED}✗ $node - 証明書なし${NC}"
     fi
 done
+
+echo ""
+echo "証明書生成結果: ${CERT_SUCCESS} / ${CERT_TOTAL} ノード"
 
 # ステップ7: Metrics Server再起動
 echo ""
 echo "=========================================="
 echo "[7/7] Metrics Server再起動"
 echo "=========================================="
-kubectl delete pod -n kube-system -l app.kubernetes.io/name=metrics-server
-echo ""
-echo "Metrics Server起動待機（60秒）..."
-sleep 60
 
-kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server
-
-# Readiness確認
-if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=metrics-server -n kube-system --timeout=60s 2>/dev/null; then
-    echo -e "${GREEN}✓ Metrics Server起動成功${NC}"
-else
-    echo -e "${RED}✗ Metrics Server起動失敗${NC}"
+if [ "${CERT_SUCCESS}" -gt 0 ] 2>/dev/null; then
+    echo "証明書が生成されたため、Metrics Serverを再起動します..."
+    kubectl delete pod -n kube-system -l app.kubernetes.io/name=metrics-server
     echo ""
-    echo "ログを確認:"
-    kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server --tail=30
+    echo "Metrics Server起動待機（60秒）..."
+    sleep 60
+    
+    kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server
+    
+    # Readiness確認
+    if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=metrics-server -n kube-system --timeout=60s 2>/dev/null; then
+        echo -e "${GREEN}✓ Metrics Server起動成功${NC}"
+    else
+        echo -e "${RED}✗ Metrics Server起動失敗${NC}"
+        echo ""
+        echo "ログを確認:"
+        kubectl logs -n kube-system -l app.kubernetes.io/name=metrics-server --tail=30
+    fi
+else
+    echo -e "${RED}✗ 証明書が生成されていないため、Metrics Serverをスキップします${NC}"
 fi
 
 # 最終動作確認
@@ -186,31 +228,35 @@ echo "=========================================="
 echo "最終動作確認"
 echo "=========================================="
 
-echo ""
-echo "[1/3] ノードメトリクス取得テスト:"
-if kubectl top nodes; then
-    echo -e "${GREEN}✓ ノードメトリクス取得成功${NC}"
+if [ "${CERT_SUCCESS}" -gt 0 ] 2>/dev/null; then
+    echo ""
+    echo "[1/3] ノードメトリクス取得テスト:"
+    if kubectl top nodes 2>/dev/null; then
+        echo -e "${GREEN}✓ ノードメトリクス取得成功${NC}"
+    else
+        echo -e "${RED}✗ ノードメトリクス取得失敗${NC}"
+    fi
+    
+    echo ""
+    echo "[2/3] Podメトリクス取得テスト:"
+    if kubectl top pods -n kube-system 2>/dev/null | head -10; then
+        echo -e "${GREEN}✓ Podメトリクス取得成功${NC}"
+    else
+        echo -e "${RED}✗ Podメトリクス取得失敗${NC}"
+    fi
+    
+    echo ""
+    echo "[3/3] APIサービス確認:"
+    kubectl get apiservice v1beta1.metrics.k8s.io
+    
+    AVAILABLE=$(kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)
+    if [ "$AVAILABLE" == "True" ]; then
+        echo -e "${GREEN}✓ Metrics Server APIが利用可能です${NC}"
+    else
+        echo -e "${RED}✗ Metrics Server APIが利用できません${NC}"
+    fi
 else
-    echo -e "${RED}✗ ノードメトリクス取得失敗${NC}"
-fi
-
-echo ""
-echo "[2/3] Podメトリクス取得テスト:"
-if kubectl top pods -n kube-system | head -10; then
-    echo -e "${GREEN}✓ Podメトリクス取得成功${NC}"
-else
-    echo -e "${RED}✗ Podメトリクス取得失敗${NC}"
-fi
-
-echo ""
-echo "[3/3] APIサービス確認:"
-kubectl get apiservice v1beta1.metrics.k8s.io
-
-AVAILABLE=$(kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)
-if [ "$AVAILABLE" == "True" ]; then
-    echo -e "${GREEN}✓ Metrics Server APIが利用可能です${NC}"
-else
-    echo -e "${RED}✗ Metrics Server APIが利用できません${NC}"
+    echo -e "${YELLOW}証明書が生成されていないため、動作確認をスキップします${NC}"
 fi
 
 # サマリー
@@ -219,10 +265,29 @@ echo "=========================================="
 echo "処理完了サマリー"
 echo "=========================================="
 echo "環境: ${ENV_NAME}"
-echo "kubelet-csr-approver: $(kubectl get pods -n kube-system -l app.kubernetes.io/name=kubelet-csr-approver --no-headers | wc -l) Pod(s) Running"
-echo "Metrics Server: $(kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server -o jsonpath='{.items[0].status.phase}' 2>/dev/null)"
-echo "承認済みCSR: $APPROVED_COUNT / $CSR_COUNT"
+echo "kubelet-csr-approver: $(kubectl get pods -n kube-system -l app.kubernetes.io/name=kubelet-csr-approver --no-headers 2>/dev/null | wc -l) Pod(s) Running"
+echo "Metrics Server: $(kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo 'N/A')"
+echo "CSR統計:"
+echo "  - 承認済み: ${APPROVED_COUNT}"
+echo "  - 拒否: ${DENIED_COUNT}"
+echo "  - 保留: ${PENDING_COUNT}"
+echo "  - 合計: ${CSR_COUNT}"
+echo "証明書生成: ${CERT_SUCCESS} / ${CERT_TOTAL} ノード"
 echo "バックアップ: ${BACKUP_DIR}/"
 echo ""
-echo -e "${GREEN}✓ Metrics Server有効化作業完了${NC}"
+
+if [ "${DENIED_COUNT}" -gt 0 ] 2>/dev/null; then
+    echo -e "${RED}⚠ CSRが拒否されています - 原因調査が必要です${NC}"
+    echo ""
+    echo "次のステップ:"
+    echo "  1. 原因調査スクリプトを実行: ./investigate-csr-denied.sh"
+    echo "  2. kubelet-csr-approverログ確認: kubectl logs -n kube-system -l app.kubernetes.io/name=kubelet-csr-approver"
+elif [ "${CERT_SUCCESS}" -eq "${CERT_TOTAL}" ] 2>/dev/null; then
+    echo -e "${GREEN}✓ Metrics Server有効化作業完了${NC}"
+else
+    echo -e "${YELLOW}⚠ 一部のノードで証明書生成に失敗しました${NC}"
+    echo ""
+    echo "次のステップ:"
+    echo "  1. 原因調査スクリプトを実行: ./investigate-csr-denied.sh"
+fi
 echo "=========================================="
