@@ -73,7 +73,7 @@ ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
 
 # Kubeconfig権限設定
 chmod 600 ~/.kube/config-production
-\n# APIサーバーアドレスを修正（重要！）
+# APIサーバーアドレスを修正（重要！）
 sed -i "s|https://127.0.0.1:6443|https://${MASTER_IP}:6443|g" ~/.kube/config-production
 
 # クラスタ確認
