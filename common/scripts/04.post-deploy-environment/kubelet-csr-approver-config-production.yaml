@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubelet-csr-approver
+  namespace: kube-system
+data:
+  config.yaml: |
+    # DNS解決の問題を回避
+    bypassDNSResolution: true
+    
+    # ホスト名チェックをバイパス
+    bypassHostnameCheck: true
+    
+    # system:nodeプレフィックスを持つリクエストを許可
+    providerRegex: "^system:node:.*"
+    
+    # 証明書の有効期限（1年 = 31536000秒）
+    maxExpirationSeconds: 31536000
+    
+    # 許可するDNS名のリスト
+    allowedDNSNames:
+      - "*.cluster.local"
+      - "*.kube-system.svc.cluster.local"
+      - "master01"
+      - "master02"
+      - "master03"
+      - "node01"
+      - "node02"
+      - "node03"
+      - "172.16.100.101"
+      - "172.16.100.102"
+      - "172.16.100.103"
+      - "172.16.100.111"
+      - "172.16.100.112"
+      - "172.16.100.113"
