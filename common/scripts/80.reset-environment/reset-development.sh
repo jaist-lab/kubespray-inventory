@@ -4,7 +4,7 @@
 set -e
 cd ~/kubernetes/kubespray
 
-INVENTORY="~/kubernetes/kubespray/development/production/hosts.yml"
+INVENTORY="~/kubernetes/kubespray/inventory/development/hosts.yml"
 
 echo "=========================================="
 echo "Step 1: 完全リセット"
