@@ -138,8 +138,8 @@ for node in $NODE_IPS; do
     
     # 3.2: CSR生成待機
     echo ""
-    echo "[2/4] CSR生成待機（15秒）..."
-    sleep 15
+    echo "[2/4] CSR生成待機（30秒）..."
+    sleep 30
     
     # CSRを探す
     NEW_CSR=$(kubectl get csr 2>/dev/null | grep "system:node:${NODE_NAME}" | grep -E "Pending|Denied" | tail -1 | awk '{print $1}')
