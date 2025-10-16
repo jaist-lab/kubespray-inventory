@@ -3,6 +3,8 @@
 # ------------------------------------------------------------------------------
 # このスクリプトは、Kubernetesクラスタの各ノードに対して
 # Metrics Server用のkubelet証明書を生成し、配置するためのものです。
+# 既に証明書が存在するノードはスキップし、失敗したノードのみ処理するバージョンです。
+
 # 以下の手順を自動化しています:
 # 
 #  1. ConfigMap適用（kubelet-csr-approver設定）
@@ -26,12 +28,14 @@
 # 手動で再度有効化してください。
 # 例: `kubectl scale deployment kubelet-csr-approver -n kube-system --replicas=2`   
 # ------------------------------------------------------------------------------
+
 set -e
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 echo "=========================================="
@@ -79,14 +83,95 @@ if [ ! -f "${CONFIG_FILE}" ]; then
     exit 1
 fi
 
+# 事前チェック: 既存証明書の確認
+echo "=========================================="
+echo "事前チェック: 既存証明書の確認"
+echo "=========================================="
+echo ""
+
+EXISTING_CERTS=0
+MISSING_CERTS=0
+declare -a NODES_WITH_CERT
+declare -a NODES_WITHOUT_CERT
+
+for node in $NODE_IPS; do
+    NODE_NAME=$(kubectl get nodes -o wide 2>/dev/null | grep ${node} | awk '{print $1}')
+    
+    if [ -z "$NODE_NAME" ]; then
+        echo -e "${RED}✗ ノード名を取得できません: ${node}${NC}"
+        continue
+    fi
+    
+    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+        # 証明書の有効期限を確認
+        EXPIRY=$(ssh jaist-lab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -enddate 2>/dev/null | cut -d= -f2")
+        echo -e "${GREEN}✓ ${NODE_NAME} (${node})${NC} - 証明書あり（有効期限: ${EXPIRY}）"
+        EXISTING_CERTS=$((EXISTING_CERTS + 1))
+        NODES_WITH_CERT+=("${node}:${NODE_NAME}")
+    else
+        echo -e "${RED}✗ ${NODE_NAME} (${node})${NC} - 証明書なし"
+        MISSING_CERTS=$((MISSING_CERTS + 1))
+        NODES_WITHOUT_CERT+=("${node}:${NODE_NAME}")
+    fi
+done
+
+NODE_COUNT=$(echo $NODE_IPS | wc -w)
+
+echo ""
+echo "証明書状態サマリー:"
+echo "  証明書あり: ${EXISTING_CERTS} / ${NODE_COUNT} ノード"
+echo "  証明書なし: ${MISSING_CERTS} / ${NODE_COUNT} ノード"
+echo ""
+
+if [ "${MISSING_CERTS}" -eq 0 ]; then
+    echo -e "${GREEN}✓ すべてのノードに証明書が存在します${NC}"
+    echo ""
+    read -p "Metrics Serverを再起動しますか？ (yes/no): " RESTART_ONLY
+    
+    if [ "$RESTART_ONLY" == "yes" ]; then
+        echo ""
+        echo "=========================================="
+        echo "Metrics Server再起動"
+        echo "=========================================="
+        
+        kubectl delete pod -n kube-system -l app.kubernetes.io/name=metrics-server 2>/dev/null || echo "Metrics Server Podなし"
+        
+        echo ""
+        echo "起動待機（60秒）..."
+        sleep 60
+        
+        kubectl get pods -n kube-system -l app.kubernetes.io/name=metrics-server
+        
+        echo ""
+        echo "動作確認:"
+        kubectl top nodes
+        
+        echo ""
+        echo -e "${GREEN}✓ 完了${NC}"
+        exit 0
+    else
+        echo "処理を終了します"
+        exit 0
+    fi
+fi
+
 echo "このスクリプトは以下を実行します:"
 echo "  1. ConfigMap適用（kubelet-csr-approver設定）"
 echo "  2. kubelet-csr-approverを停止"
 echo "  3. 既存のすべてのCSRを削除"
-echo "  4. 全ノードを1つずつkubelet再起動"
+echo -e "  4. ${CYAN}証明書なしノードのみ${NC}を1つずつkubelet再起動"
 echo "  5. 各ノードのCSRを手動承認"
 echo "  6. 証明書生成を確認"
 echo "  7. Metrics Server再起動"
+echo ""
+echo -e "${CYAN}処理対象: ${MISSING_CERTS}ノード（証明書なしノードのみ）${NC}"
+echo ""
+
+for node_info in "${NODES_WITHOUT_CERT[@]}"; do
+    IFS=':' read -r node_ip node_name <<< "$node_info"
+    echo "  - ${node_name} (${node_ip})"
+done
+
 echo ""
 read -p "続行しますか？ (yes/no): " CONFIRM
 
@@ -166,50 +251,26 @@ fi
 
 sleep 5
 
-# ステップ3-6: 1ノードずつ処理
+# ステップ3-6: 証明書なしノードのみ処理
 echo ""
 echo "=========================================="
-echo "[3-6/7] ノードごとの証明書生成"
+echo "[3-6/7] 証明書なしノードの証明書生成"
 echo "=========================================="
 echo ""
-echo "各ノードで以下を実行します:"
-echo "  1. kubelet再起動"
-echo "  2. CSR生成待機（30秒）"
-echo "  3. CSR手動承認"
-echo "  4. 証明書生成確認（10秒待機）"
+echo -e "${CYAN}処理対象: ${MISSING_CERTS}ノード${NC}"
 echo ""
 
-SUCCESS_COUNT=0
+SUCCESS_COUNT=${EXISTING_CERTS}  # 既存証明書数から開始
 FAIL_COUNT=0
-declare -a FAILED_NODES
+declare -a NEWLY_FAILED_NODES
 
-for node in $NODE_IPS; do
+for node_info in "${NODES_WITHOUT_CERT[@]}"; do
+    IFS=':' read -r node node_name <<< "$node_info"
+    
     echo ""
     echo "=========================================="
-    echo "処理中: ${node}"
+    echo "処理中: ${node_name} (${node})"
     echo "=========================================="
-    
-    # ノード名を取得
-    NODE_NAME=$(kubectl get nodes -o wide 2>/dev/null | grep ${node} | awk '{print $1}')
-    
-    if [ -z "$NODE_NAME" ]; then
-        echo -e "${RED}✗ ノード名を取得できません: ${node}${NC}"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        FAILED_NODES+=("${node}")
-        continue
-    fi
-    
-    echo "ノード名: ${NODE_NAME}"
-    
-    # 既存の証明書を確認
-    echo ""
-    echo "既存証明書確認:"
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
-        echo "  既存証明書あり - 削除します"
-        ssh jaist-lab@${node} "sudo rm -f /var/lib/kubelet/pki/kubelet-server-*.pem" 2>/dev/null || true
-    else
-        echo "  既存証明書なし"
-    fi
     
     # 3.1: kubelet再起動
     echo ""
@@ -219,7 +280,7 @@ for node in $NODE_IPS; do
     else
         echo -e "${RED}✗ kubelet再起動失敗${NC}"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        FAILED_NODES+=("${node}")
+        NEWLY_FAILED_NODES+=("${node}:${node_name}")
         continue
     fi
     
@@ -229,7 +290,7 @@ for node in $NODE_IPS; do
     sleep 30
     
     # CSRを探す
-    NEW_CSR=$(kubectl get csr 2>/dev/null | grep "system:node:${NODE_NAME}" | grep -E "Pending|Denied" | tail -1 | awk '{print $1}')
+    NEW_CSR=$(kubectl get csr 2>/dev/null | grep "system:node:${node_name}" | grep -E "Pending|Denied" | tail -1 | awk '{print $1}')
     
     if [ -z "$NEW_CSR" ]; then
         echo -e "${RED}✗ CSRが生成されませんでした${NC}"
@@ -241,7 +302,7 @@ for node in $NODE_IPS; do
         echo "kubeletログ:"
         ssh jaist-lab@${node} "sudo journalctl -u kubelet --since '30 seconds ago' | grep -i csr | tail -10" 2>/dev/null || echo "ログ取得失敗"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        FAILED_NODES+=("${node}")
+        NEWLY_FAILED_NODES+=("${node}:${node_name}")
         continue
     fi
     
@@ -264,7 +325,7 @@ for node in $NODE_IPS; do
     else
         echo -e "${RED}✗ CSR承認失敗${NC}"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        FAILED_NODES+=("${node}")
+        NEWLY_FAILED_NODES+=("${node}:${node_name}")
         continue
     fi
     
@@ -284,7 +345,7 @@ for node in $NODE_IPS; do
     else
         echo -e "${RED}✗ 証明書生成失敗${NC}"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        FAILED_NODES+=("${node}")
+        NEWLY_FAILED_NODES+=("${node}:${node_name}")
     fi
     
     echo ""
@@ -292,20 +353,33 @@ for node in $NODE_IPS; do
     sleep 2
 done
 
+# 証明書をスキップしたノードの表示
+if [ "${EXISTING_CERTS}" -gt 0 ]; then
+    echo ""
+    echo "=========================================="
+    echo "証明書が既に存在するノード（スキップ）"
+    echo "=========================================="
+    for node_info in "${NODES_WITH_CERT[@]}"; do
+        IFS=':' read -r node_ip node_name <<< "$node_info"
+        echo -e "${CYAN}⊙ ${node_name} (${node_ip}) - 既存証明書を保持${NC}"
+    done
+fi
+
 # ステップ7: Metrics Server再起動
 echo ""
 echo "=========================================="
 echo "[7/7] Metrics Server再起動"
 echo "=========================================="
 
-NODE_COUNT=$(echo $NODE_IPS | wc -w)
-
 echo ""
 echo "証明書生成結果: ${SUCCESS_COUNT} / ${NODE_COUNT} ノード"
+echo "  既存証明書: ${EXISTING_CERTS} ノード"
+echo "  新規生成: $((SUCCESS_COUNT - EXISTING_CERTS)) ノード"
+echo "  失敗: ${FAIL_COUNT} ノード"
 echo ""
 
 if [ "${SUCCESS_COUNT}" -gt 0 ]; then
-    echo "証明書が生成されたノードがあるため、Metrics Serverを再起動します..."
+    echo "証明書が存在するノードがあるため、Metrics Serverを再起動します..."
     
     kubectl delete pod -n kube-system -l app.kubernetes.io/name=metrics-server 2>/dev/null || echo "Metrics Server Podなし"
     
@@ -362,8 +436,10 @@ echo "=========================================="
 echo "処理完了サマリー"
 echo "=========================================="
 echo "環境: ${ENV_NAME}"
-echo "成功: ${SUCCESS_COUNT} ノード"
-echo "失敗: ${FAIL_COUNT} ノード"
+echo "証明書ありノード: ${SUCCESS_COUNT} / ${NODE_COUNT}"
+echo "  - 既存証明書（保持）: ${EXISTING_CERTS} ノード"
+echo "  - 新規生成（成功）: $((SUCCESS_COUNT - EXISTING_CERTS)) ノード"
+echo "証明書なしノード: ${FAIL_COUNT} / ${NODE_COUNT}"
 echo "バックアップ: ${BACKUP_DIR}/"
 echo ""
 
@@ -374,7 +450,21 @@ for node in $NODE_IPS; do
     printf "%-20s " "${NODE_NAME} (${node}):"
     
     if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
-        echo -e "${GREEN}✓ 証明書あり${NC}"
+        # 既存か新規かを判定
+        IS_EXISTING=false
+        for existing_info in "${NODES_WITH_CERT[@]}"; do
+            IFS=':' read -r existing_ip existing_name <<< "$existing_info"
+            if [ "$node" == "$existing_ip" ]; then
+                IS_EXISTING=true
+                break
+            fi
+        done
+        
+        if [ "$IS_EXISTING" == "true" ]; then
+            echo -e "${CYAN}✓ 証明書あり（既存）${NC}"
+        else
+            echo -e "${GREEN}✓ 証明書あり（新規生成）${NC}"
+        fi
     else
         echo -e "${RED}✗ 証明書なし${NC}"
     fi
@@ -384,7 +474,15 @@ echo ""
 echo "=========================================="
 
 if [ "${SUCCESS_COUNT}" -eq "${NODE_COUNT}" ]; then
-    echo -e "${GREEN}✓ すべてのノードで証明書生成に成功しました！${NC}"
+    echo -e "${GREEN}✓ すべてのノードに証明書があります！${NC}"
+    echo ""
+    if [ "${EXISTING_CERTS}" -eq "${NODE_COUNT}" ]; then
+        echo -e "${CYAN}すべて既存の証明書です（新規生成なし）${NC}"
+    elif [ "${EXISTING_CERTS}" -gt 0 ]; then
+        echo -e "${CYAN}既存証明書: ${EXISTING_CERTS}ノード、新規生成: $((SUCCESS_COUNT - EXISTING_CERTS))ノード${NC}"
+    else
+        echo -e "${GREEN}すべて新規生成されました${NC}"
+    fi
     echo ""
     echo "次のステップ:"
     echo "  1. 動作確認:"
@@ -395,23 +493,23 @@ if [ "${SUCCESS_COUNT}" -eq "${NODE_COUNT}" ]; then
     echo "     kubectl scale deployment kubelet-csr-approver -n kube-system --replicas=2"
     echo ""
 elif [ "${SUCCESS_COUNT}" -gt 0 ]; then
-    echo -e "${YELLOW}⚠ 一部のノードで証明書生成に成功しました${NC}"
+    echo -e "${YELLOW}⚠ 一部のノードで証明書生成に失敗しました${NC}"
     echo ""
     echo "失敗したノード:"
-    for failed_node in "${FAILED_NODES[@]}"; do
-        NODE_NAME=$(kubectl get nodes -o wide 2>/dev/null | grep ${failed_node} | awk '{print $1}')
-        echo "  - ${NODE_NAME} (${failed_node})"
+    for failed_info in "${NEWLY_FAILED_NODES[@]}"; do
+        IFS=':' read -r failed_ip failed_name <<< "$failed_info"
+        echo "  - ${failed_name} (${failed_ip})"
     done
     echo ""
     echo "次のステップ:"
-    echo "  1. このスクリプトを再実行（失敗ノードのみ処理）"
-    echo "  2. または手動で証明書を抽出・配置"
+    echo "  1. このスクリプトを再実行（失敗ノードのみ自動処理）"
+    echo "     ./setup-metrics-server-certificates.sh"
     echo ""
-    echo "再実行コマンド:"
-    echo "  ./setup-metrics-server-certificates.sh"
+    echo "  2. または原因調査:"
+    echo "     ./investigate-csr-denied.sh"
     echo ""
 else
-    echo -e "${RED}✗ すべてのノードで証明書生成に失敗しました${NC}"
+    echo -e "${RED}✗ 証明書なしノードすべてで生成に失敗しました${NC}"
     echo ""
     echo "根本的な問題がある可能性があります。"
     echo ""
