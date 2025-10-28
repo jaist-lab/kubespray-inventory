@@ -35,12 +35,12 @@ echo "[2/4] Inventory検証..."
 ansible-inventory -i "${INVENTORY_DIR}/hosts.yml" --list > /dev/null
 
 # 1. すべてのマスタノードで必要なディレクトリを事前作成
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/sandbox/hosts.yml \
   -m shell -a "mkdir -p /etc/ssl/etcd /etc/kubernetes/ssl /etc/kubernetes/pki" \
   --become
 
 # 2. 権限を設定
-ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/development/hosts.yml \
+ansible kube_control_plane -i ~/kubernetes/kubespray/inventory/sandbox/hosts.yml \
   -m shell -a "chmod 755 /etc/ssl/etcd /etc/kubernetes/ssl" \
   --become
 
@@ -65,16 +65,16 @@ TEMP_FILE="/tmp/admin.conf.${MASTER_IP}"
 ssh jaist-lab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && sudo chown jaist-lab:jaist-lab ${TEMP_FILE} && sudo chmod 644 ${TEMP_FILE}"
 
 # ローカルにコピー
-scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-development
+scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-sandbox
 
 # リモート側の一時ファイル削除
 ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
 
 # Kubeconfig権限設定
-chmod 600 ~/.kube/config-development
+chmod 600 ~/.kube/config-sandbox
 
 # APIサーバーアドレスを修正（重要！）
-sed -i "s|https://127.0.0.1:6443|https://${MASTER_IP}:6443|g" ~/.kube/config-development
+sed -i "s|https://127.0.0.1:6443|https://${MASTER_IP}:6443|g" ~/.kube/config-sandbox
 
 # クラスタ確認
 export KUBECONFIG=~/.kube/config-sandbox
