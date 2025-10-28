@@ -25,17 +25,17 @@ case $ENV_CHOICE in
     1)
         ENV_NAME="production"
         export KUBECONFIG=~/.kube/config-production
-        TARGET_NODE_IP="172.16.100.101"
+        TARGET_NODE_IP="172.16.200.101"
         ;;
     2)
         ENV_NAME="development"
         export KUBECONFIG=~/.kube/config-development
-        TARGET_NODE_IP="172.16.100.121"  
+        TARGET_NODE_IP="172.16.200.121"  
         ;;
     3)
         ENV_NAME="sandbox"
         export KUBECONFIG=~/.kube/config-sandbox
-        TARGET_NODE_IP="172.16.100.131"
+        TARGET_NODE_IP="172.16.200.131"
         ;;
     *)
         echo -e "${RED}✗ 無効な選択です${NC}"
