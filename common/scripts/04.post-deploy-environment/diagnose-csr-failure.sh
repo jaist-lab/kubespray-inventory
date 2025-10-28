@@ -18,7 +18,8 @@ echo ""
 echo "対象環境を選択してください:"
 echo "  1) Production"
 echo "  2) Development"
-read -p "選択 (1 or 2): " ENV_CHOICE
+echo "  3) Sandbox"
+read -p "選択 (1 or 2 or 3): " ENV_CHOICE
 
 case $ENV_CHOICE in
     1)
@@ -30,6 +31,11 @@ case $ENV_CHOICE in
         ENV_NAME="development"
         export KUBECONFIG=~/.kube/config-development
         TARGET_NODE_IP="172.16.100.123"  # dev-master03
+        ;;
+    3)
+        ENV_NAME="sandbox"
+        export KUBECONFIG=~/.kube/config-sandbox
+        TARGET_NODE_IP="172.16.100.133"  # sandbox-master03
         ;;
     *)
         echo -e "${RED}✗ 無効な選択です${NC}"
