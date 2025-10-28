@@ -47,20 +47,28 @@ echo ""
 echo "対象環境を選択してください:"
 echo "  1) Production"
 echo "  2) Development"
-read -p "選択 (1 or 2): " ENV_CHOICE
+echo "  3) Sandbox"
+
+read -p "選択 (1 or 2 or 3): " ENV_CHOICE
 
 case $ENV_CHOICE in
     1)
         ENV_NAME="production"
         export KUBECONFIG=~/.kube/config-production
         CONFIG_FILE="kubelet-csr-approver-config-production.yaml"
-        NODE_IPS="172.16.100.101 172.16.100.102 172.16.100.103 172.16.100.111 172.16.100.112 172.16.100.113"
+        NODE_IPS="master01 master02 master03 node01 node02 dlcsv1 dlcsv2"
         ;;
     2)
         ENV_NAME="development"
         export KUBECONFIG=~/.kube/config-development
         CONFIG_FILE="kubelet-csr-approver-config-development.yaml"
-        NODE_IPS="172.16.100.121 172.16.100.122 172.16.100.123 172.16.100.131 172.16.100.132 172.16.100.133"
+        NODE_IPS="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02"
+        ;;
+    3)
+        ENV_NAME="sandbox"
+        export KUBECONFIG=~/.kube/config-sandbox
+        CONFIG_FILE="kubelet-csr-approver-config-sandbox.yaml"
+        NODE_IPS="sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 sandbox-node02"
         ;;
     *)
         echo -e "${RED}✗ 無効な選択です${NC}"
