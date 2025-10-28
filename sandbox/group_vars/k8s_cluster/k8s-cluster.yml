@@ -1,0 +1,53 @@
+---
+# 基本設定のみ
+# Kubernetes version (Productionと同じ)
+cluster_name: development-cluster
+kube_version: 1.31.3
+
+# Container runtime
+container_manager: containerd
+
+# Kube-proxy
+kube_proxy_mode: ipvs
+
+# CNI plugin
+kube_network_plugin: calico
+
+# Service subnet (Development専用: Productionと重複回避)
+kube_service_addresses: 10.234.0.0/18
+# Pod subnet (Development専用: Productionと重複回避)
+kube_pods_subnet: 10.234.64.0/18
+
+# DNS設定
+dns_mode: coredns
+enable_nodelocaldns: true
+
+# Kubelet設定
+kubelet_max_pods: 110
+kubelet_rotate_server_certificates: true
+
+# マルチマスター構成（シンプル設定）
+loadbalancer_apiserver_localhost: true
+
+# 証明書自動更新
+auto_renew_certificates: true
+
+# Audit log (Development環境では無効化)
+kubernetes_audit: false
+
+# Encryption at rest (Development環境では無効化)
+kube_encrypt_secret_data: false
+
+# Pod Security
+podsecuritypolicy_enabled: false
+
+# Metrics Server
+metrics_server_enabled: true
+
+# Helm
+helm_enabled: true
+
+# Authorization
+kube_authorization_modes:
+  - Node
+  - RBAC

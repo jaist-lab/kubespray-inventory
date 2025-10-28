@@ -1,0 +1,9 @@
+---
+## Ansible設定
+ansible_user: jaist-lab
+ansible_become: true
+ansible_ssh_pipelining: true
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+## ログ設定
+bin_dir: /usr/local/bin
