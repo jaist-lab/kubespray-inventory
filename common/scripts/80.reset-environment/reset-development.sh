@@ -20,7 +20,7 @@ echo ""
 echo "=========================================="
 echo "Step 2: 証明書とKubernetes設定を削除"
 echo "=========================================="
-for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 dev-node03; do
+for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 ; do
     echo "Cleaning $host..."
     ssh jaist-lab@$host "sudo rm -rf /etc/kubernetes/ /etc/ssl/etcd/ /var/lib/etcd/ /var/lib/kubelet/ /etc/cni/"
 done
@@ -42,7 +42,7 @@ echo ""
 echo "=========================================="
 echo "Step 4: SSH接続確認"
 echo "=========================================="
-for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 dev-node03; do
+for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 ; do
     if ssh -o ConnectTimeout=5 jaist-lab@$host "hostname" &>/dev/null; then
         echo "✓ $host: OK"
     else
