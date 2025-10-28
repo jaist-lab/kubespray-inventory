@@ -1,7 +1,7 @@
 #!/bin/bash
 # Production環境 SSH公開鍵配布
 
-NODES="172.16.100.101 172.16.100.102 172.16.100.103 172.16.100.111 172.16.100.112 172.16.100.113"
+NODES="master01 master02 master03 node01 node02 dlcsv1 dlcsv2"
 USER="jaist-lab"
 PASSWORD="jaileon02"  # 初回接続用パスワード
 

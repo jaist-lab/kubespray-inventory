@@ -1,7 +1,7 @@
 #!/bin/bash
-# Development環境 SSH公開鍵配布
+# Sandbox環境 SSH公開鍵配布
 
-NODES="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02"
+NODES="sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 sandbox-node02"
 USER="jaist-lab"
 PASSWORD="jaileon02"  # 初回接続用パスワード
 
