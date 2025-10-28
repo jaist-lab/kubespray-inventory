@@ -14,8 +14,9 @@ echo "=========================================="
 echo "確認する環境を選択してください:"
 echo "  1) Production"
 echo "  2) Development"
-echo "  3) 両方"
-read -p "選択 (1/2/3): " ENV_CHOICE
+echo "  3) Sandbox"
+echo "  4) すべて"
+read -p "選択 (1/2/3/4): " ENV_CHOICE
 
 check_environment() {
     local ENV_NAME=$1
@@ -59,9 +60,13 @@ case $ENV_CHOICE in
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
         ;;
     3)
+        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/development"
+        ;;
+    4)
         check_environment "Production" "${KUBESPRAY_DIR}/inventory/production"
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
-        ;;
+        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/development"
+      ;;
     *)
         echo "無効な選択です"
         exit 1

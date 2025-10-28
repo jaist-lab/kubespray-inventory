@@ -14,7 +14,9 @@ echo "=========================================="
 echo "検証する環境を選択してください:"
 echo "  1) Production"
 echo "  2) Development"
-read -p "選択 (1 or 2): " ENV_CHOICE
+echo "  3) Sandbox"
+
+read -p "選択 (1 or 2 or 3): " ENV_CHOICE
 
 case $ENV_CHOICE in
     1)
@@ -24,6 +26,10 @@ case $ENV_CHOICE in
     2)
         INVENTORY_DIR="${KUBESPRAY_DIR}/inventory/development"
         ENV_NAME="Development"
+        ;;
+    3)
+        INVENTORY_DIR="${KUBESPRAY_DIR}/inventory/sandbox"
+        ENV_NAME="Sandbox"
         ;;
     *)
         echo "無効な選択です"
