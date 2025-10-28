@@ -1,5 +1,6 @@
 ---
 # 基本設定のみ
+# Development環境用Kubernetesクラスタ設定
 # Kubernetes version (Productionと同じ)
 cluster_name: development-cluster
 kube_version: 1.31.3
@@ -13,9 +14,9 @@ kube_proxy_mode: ipvs
 # CNI plugin
 kube_network_plugin: calico
 
-# Service subnet (Development専用: Productionと重複回避)
+# Service subnet (Development専用: 他環境と重複回避)
 kube_service_addresses: 10.234.0.0/18
-# Pod subnet (Development専用: Productionと重複回避)
+# Pod subnet (Development専用: 他環境と重複回避)
 kube_pods_subnet: 10.234.64.0/18
 
 # DNS設定
