@@ -11,8 +11,9 @@ echo "=========================================="
 echo "取得する環境を選択してください:"
 echo "  1) Production"
 echo "  2) Development"
-echo "  3) 両方"
-read -p "選択 (1/2/3): " ENV_CHOICE
+echo "  3) Sandbox"
+echo "  4) すべて"
+read -p "選択 (1/2/3/4): " ENV_CHOICE
 
 get_kubeconfig() {
     local ENV_NAME=$1
@@ -74,9 +75,15 @@ case $ENV_CHOICE in
         get_kubeconfig "Development" "172.16.100.121" "config-development"
         ;;
     3)
+        get_kubeconfig "Sandbox"     "172.16.100.131" "config-sandbox"
+        ;;
+    4)
         get_kubeconfig "Production" "172.16.100.101" "config-production"
         echo ""
         get_kubeconfig "Development" "172.16.100.121" "config-development"
+        echo ""
+        get_kubeconfig "Sandbox"     "172.16.100.131" "config-sandbox"
+        echo ""
         ;;
     *)
         echo "無効な選択です"
@@ -94,5 +101,9 @@ echo "  kubectl get nodes"
 echo ""
 echo "Development環境:"
 echo "  export KUBECONFIG=~/.kube/config-development"
+echo "  kubectl get nodes"
+echo ""
+echo "Sandbox環境:"
+echo "  export KUBECONFIG=~/.kube/config-sandbox"
 echo "  kubectl get nodes"
 echo "=========================================="

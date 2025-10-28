@@ -1,10 +1,10 @@
 #!/bin/bash
 # デプロイ後検証スクリプト
 
-export KUBECONFIG=~/.kube/config-development
+export KUBECONFIG=~/.kube/config-sandbox
 
 echo "=========================================="
-echo "Development環境デプロイ後検証"
+echo "Production環境デプロイ後検証"
 echo "=========================================="
 echo ""
 
@@ -25,7 +25,7 @@ kubectl get pods -n kube-system -l k8s-app=kube-dns
 echo ""
 
 echo "[5] API Server健全性"
-for master in dev-master01 dev-master02 dev-master03; do
+for master in sandbox-master01 sandbox-master02 sandbox-master03; do
     echo "  $master:"
     kubectl get pods -n kube-system -l component=kube-apiserver --field-selector spec.nodeName=$master
 done
