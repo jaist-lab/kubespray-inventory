@@ -145,7 +145,7 @@ ansible_ssh_pipelining: true
 ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
 # APIサーバーのみ外部アクセスIPを使用
-#supplementary_addresses_in_ssl_keys:
-#  - 172.16.100.101
-#  - 172.16.100.102
-#  - 172.16.100.103
+supplementary_addresses_in_ssl_keys:
+  - 172.16.100.101
+  - 172.16.100.102
+  - 172.16.100.103
