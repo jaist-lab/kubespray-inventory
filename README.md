@@ -9,6 +9,11 @@
 
 ## 使用方法
 
+まずkubesprayのリポジトリを取得します
+```bash
+git clone https://github.com/kubernetes-sigs/kubespray.git
+```
+
 ```bash
 # Kubesprayディレクトリ内でこのリポジトリをシンボリックリンク
 cd ~/kubernetes/kubespray
