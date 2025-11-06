@@ -60,12 +60,12 @@ case $ENV_CHOICE in
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
         ;;
     3)
-        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/development"
+        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/sandbox"
         ;;
     4)
         check_environment "Production" "${KUBESPRAY_DIR}/inventory/production"
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
-        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/development"
+        check_environment "Sandbox"     "${KUBESPRAY_DIR}/inventory/sandbox"
       ;;
     *)
         echo "無効な選択です"
