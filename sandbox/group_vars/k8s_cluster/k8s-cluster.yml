@@ -2,7 +2,7 @@
 # 基本設定のみ
 # Sandbox環境用Kubernetesクラスタ設定
 # Kubernetes version (Productionと同じ)
-cluster_name: development-cluster
+cluster_name: sandbox-cluster
 kube_version: 1.31.3
 
 # Container runtime
