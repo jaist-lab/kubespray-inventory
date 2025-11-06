@@ -11,6 +11,8 @@
 
 まずkubesprayのリポジトリを取得します
 ```bash
+mkdir ~/kubernetes
+cd ~/kubernetes
 git clone https://github.com/kubernetes-sigs/kubespray.git
 ```
 
