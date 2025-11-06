@@ -16,6 +16,11 @@ cd ~/kubernetes
 git clone https://github.com/kubernetes-sigs/kubespray.git
 ```
 
+次にこのリポジトリを取得する
+```bash
+git clone git@github.com:jaist-lab/kubespray-inventory.git
+```
+
 ```bash
 # Kubesprayディレクトリ内でこのリポジトリをシンボリックリンク
 cd ~/kubernetes/kubespray
