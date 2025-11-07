@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+calico_allow_ip_forwarding: false
+calico_apiserver_enabled: false
+calico_bpf_enabled: false
+calico_cni_version: "3.28.0"
+calicoctl_version: "3.28.0"
+calico_datastore: "kdd"  # Kubernetes datastore
+calico_felix_prometheusgoprocessesenabled: true
+calico_felix_prometheusmetricsenabled: true
+calico_felix_prometheusmetricsport: 9091
+calico_ip6_auto_method: "first-found"
+calico_ip_auto_method: "first-found"
+calico_ipip_mode: 'Never'  # Always → Never
+calico_ipv6pool_enabled: false
+calico_mtu: 1450
+calico_network_backend: vxlan  # bird → vxlan に変更（推奨）
+calico_node_cpu_limit: 300m
+calico_node_cpu_requests: 150m
+calico_node_memory_limit: 500M
+calico_node_memory_requests: 64M
+calico_policy_version: "3.28.0"
+calico_pool_blocksize: 26
+calico_pool_cidr: "{{ kube_pods_subnet }}"
+calico_pool_ipip_mode: "{{ calico_ipip_mode }}"
+calico_pool_name: "default-pool"
+calico_pool_nat_outgoing: true
+calico_pool_vxlan_mode: "{{ calico_vxlan_mode }}"
+calico_typha_version: "3.28.0"
+calico_version: "3.28.0"
+calico_vxlan_mode: 'Always'  # Never → Always
+calico_vxlan_port: 4789
+calico_vxlan_vni: 4096
+calico_windows_enabled: false
+peer_with_calico_rr: false
+peer_with_router: false
+typha_enabled: false
+typha_replicas: 1
