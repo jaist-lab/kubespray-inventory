@@ -1,0 +1,44 @@
+# dcgm-servicemonitor.yaml
+# DCGM Exporter ServiceMonitor設定（修正版）
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nvidia-dcgm-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/instance: prometheus-cluster  # 🔧 追加: instance ラベル
+    release: prometheus-cluster  # 🔧 追加: release ラベル（重要）
+spec:
+  jobLabel: job
+  selector:
+    matchLabels:
+      app: nvidia-dcgm-exporter
+  namespaceSelector:
+    matchNames:
+    - gpu-operator
+  endpoints:
+  # 🔧 変更: DCGM ExporterのServiceのポート名
+  - port: gpu-metrics
+    interval: 15s
+    path: /metrics
+    scheme: http
+    honorLabels: true  # 🔧 追加: ラベル保持
+    # 🔧 追加: メトリクスフィルタリング
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'DCGM_.*|up|scrape_.*'
+      action: keep
+    # 🔧 追加: ラベル設定
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: job
+      replacement: dcgm-exporter
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: kubernetes_namespace

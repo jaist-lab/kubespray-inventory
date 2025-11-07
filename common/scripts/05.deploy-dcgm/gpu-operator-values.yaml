@@ -1,0 +1,111 @@
+# gpu-operator-values.yaml
+# 完全自動検出版GPU Operator設定ファイル（監視統合対応）
+
+global:
+  imagePullPolicy: IfNotPresent
+
+operator:
+  defaultRuntime: containerd
+
+# Node Feature Discovery設定
+nfd:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/master
+    operator: Equal
+    effect: NoSchedule
+  - key: node-role.kubernetes.io/control-plane
+    operator: Equal
+    effect: NoSchedule
+    
+  worker:
+    config:
+      core:
+        featureSources: ["all"]
+        labelSources: ["all"]
+      sources:
+        pci:
+          deviceClassWhitelist:
+          - "02"
+          - "03"
+          - "0300"
+          - "0302"
+
+# Driver設定
+driver:
+  enabled: true
+  repository: nvcr.io/nvidia
+  image: driver
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+
+# Container Toolkit設定
+toolkit:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+
+# Device Plugin設定
+devicePlugin:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+
+# GPU Feature Discovery設定
+gfd:
+  enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+
+# 🔧 重要修正: DCGM Exporter設定（監視統合対応）
+dcgmExporter:
+  enabled: true
+  # 🔧 追加: Service設定（Prometheus統合用）
+  service:
+    enable: true
+    type: ClusterIP
+    port: 9400
+    targetPort: 9400
+    labels:
+      app: nvidia-dcgm-exporter  # 🔧 重要: ServiceMonitorと一致させる
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
+  # 🔧 追加: ServiceMonitor自動作成設定
+  serviceMonitor:
+    enabled: false  # 手動で作成するためfalse
+    interval: 15s
+    additionalLabels:
+      release: prometheus-cluster  # 🔧 Prometheusとの連携用
+
+# MIG Manager設定
+migManager:
+  enabled: false
+
+# Validator設定
+validator:
+  plugin:
+    enabled: true
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu-compute
+    effect: NoSchedule
