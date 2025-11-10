@@ -190,42 +190,6 @@ if [ "$SVC_TYPE" = "NodePort" ] && [ -n "$HTTPS_PORT" ]; then
     fi
 fi
 
-# Pod内接続確認（改善版 - wget使用）
-echo ""
-echo "=== Pod内接続確認 ==="
-ARGOCD_POD=$(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server \
-    --field-selector=status.phase=Running --no-headers 2>/dev/null | head -1 | awk '{print $1}')
-
-if [ -n "$ARGOCD_POD" ]; then
-    echo "使用Pod: $ARGOCD_POD"
-
-    # localhost接続（curl/wget自動判定）
-    echo -n "  localhost:8080 -> "
-    # まずcurlを試す
-    POD_TEST=$(kubectl exec -n argocd $ARGOCD_POD -- sh -c 'command -v curl >/dev/null 2>&1 && curl -s --max-time 3 http://localhost:8080/healthz 2>/dev/null || wget -q -O- --timeout=3 http://localhost:8080/healthz 2>/dev/null' || echo "")
-    if echo "$POD_TEST" | grep -q "ok"; then
-        echo -e "${GREEN}✅${NC}"
-        POD_INTERNAL_SUCCESS=true
-    else
-        echo -e "${RED}❌${NC} (curl/wget unavailable or connection failed)"
-        POD_INTERNAL_SUCCESS=false
-    fi
-
-    # Service FQDN接続
-    echo -n "  Service FQDN -> "
-    POD_SVC_TEST=$(kubectl exec -n argocd $ARGOCD_POD -- sh -c 'command -v curl >/dev/null 2>&1 && curl -s --max-time 3 http://argocd-server.argocd.svc.cluster.local:80/healthz 2>/dev/null || wget -q -O- --timeout=3 http://argocd-server.argocd.svc.cluster.local:80/healthz 2>/dev/null' || echo "")
-    if echo "$POD_SVC_TEST" | grep -q "ok"; then
-        echo -e "${GREEN}✅${NC}"
-        POD_SVC_SUCCESS=true
-    else
-        echo -e "${RED}❌${NC} (curl/wget unavailable or connection failed)"
-        POD_SVC_SUCCESS=false
-    fi
-else
-    echo -e "${YELLOW}⚠️ 実行中のargocd-server Podが見つかりません${NC}"
-    POD_INTERNAL_SUCCESS=false
-    POD_SVC_SUCCESS=false
-fi
 
 # 総合評価
 echo ""
@@ -276,7 +240,6 @@ echo "Service: $([ "$SVC_TYPE" = "NodePort" ] && echo "✅ NodePort" || echo "�
 echo "Endpoints: $([ -n "$ENDPOINTS" ] && echo "✅" || echo "❌")"
 echo "外部接続: $([ "$EXTERNAL_SUCCESS" = true ] && echo "✅" || echo "❌")"
 echo "API応答: $([ "$API_SUCCESS" = true ] && echo "✅" || echo "⚠️")"
-echo "Pod内部: $([ "$POD_INTERNAL_SUCCESS" = true ] && echo "✅" || echo "⚠️ (非必須)")"
 
 # アクセス情報表示
 echo ""
