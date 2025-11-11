@@ -12,4 +12,3 @@ kubectl get svc argocd-server -n argocd
 
 echo ""
 echo "✅ NodePort設定完了"
-`
