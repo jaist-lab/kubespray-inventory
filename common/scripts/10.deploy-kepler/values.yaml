@@ -28,6 +28,7 @@ serviceMonitor:
   namespace: kepler
   labels:
     app.kubernetes.io/name: kepler
+    release: prometheus-cluster
   interval: 30s
 
 # Service 設定
