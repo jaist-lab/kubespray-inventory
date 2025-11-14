@@ -1,0 +1,39 @@
+# Kepler Helm Chart Values
+
+image:
+  repository: quay.io/sustainable_computing_io/kepler
+  pullPolicy: Always
+  tag: latest
+
+serviceMonitor:
+  enabled: true
+  namespace: kepler
+  labels:
+    app.kubernetes.io/name: kepler
+
+service:
+  type: ClusterIP
+  port: 9102
+  targetPort: 9102
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# DaemonSet として全ノードにデプロイ
+daemonset:
+  enabled: true
+
+# Prometheus との統合
+prometheus:
+  enabled: true
