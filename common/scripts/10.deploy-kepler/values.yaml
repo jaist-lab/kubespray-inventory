@@ -3,19 +3,40 @@
 image:
   repository: quay.io/sustainable_computing_io/kepler
   pullPolicy: Always
-  tag: latest
+  # 安定版を指定
+  tag: "release-0.7.10"
 
+# Kepler の起動設定
+kepler:
+  # コマンドライン引数
+  extraArgs:
+    - -address=0.0.0.0:9102
+    - -enable-gpu=true
+  
+  # 環境変数
+  extraEnvVars:
+    - name: ENABLE_GPU
+      value: "true"
+    - name: ENABLE_EBPF_CGROUPID
+      value: "true"
+    - name: KEPLER_LOG_LEVEL
+      value: "1"
+
+# ServiceMonitor の有効化（Prometheus Operator を使用する場合）
 serviceMonitor:
   enabled: true
   namespace: kepler
   labels:
     app.kubernetes.io/name: kepler
+  interval: 30s
 
+# Service 設定
 service:
   type: ClusterIP
   port: 9102
   targetPort: 9102
 
+# リソース設定
 resources:
   limits:
     cpu: 500m
@@ -24,15 +45,36 @@ resources:
     cpu: 100m
     memory: 128Mi
 
+# Node Selector（必要に応じて）
 nodeSelector: {}
 
+# Tolerations（必要に応じて）
 tolerations: []
 
+# Affinity（必要に応じて）
 affinity: {}
+
+# securityContext
+securityContext:
+  privileged: true
 
 # DaemonSet として全ノードにデプロイ
 daemonset:
   enabled: true
+
+# ホストネットワークを使用
+hostNetwork: true
+hostPID: true
+
+# Liveness Probe
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 9102
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
 
 # Prometheus との統合
 prometheus:
