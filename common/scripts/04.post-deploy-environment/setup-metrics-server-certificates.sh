@@ -514,8 +514,7 @@ elif [ "${SUCCESS_COUNT}" -gt 0 ]; then
     echo "     ./setup-metrics-server-certificates.sh"
     echo ""
     echo "  2. または原因調査:"
-    echo "     ./investigate-csr-denied.sh"
-    echo ""
+  echo ""
 else
     echo -e "${RED}✗ 証明書なしノードすべてで生成に失敗しました${NC}"
     echo ""
