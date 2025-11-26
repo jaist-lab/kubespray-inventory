@@ -521,15 +521,6 @@ else
     echo ""
     echo "根本的な問題がある可能性があります。"
     echo ""
-    echo "次のステップ:"
-    echo "  1. 原因調査スクリプトを実行:"
-    echo "     ./investigate-csr-denied.sh"
-    echo ""
-    echo "  2. kubelet設定を確認:"
-    echo "     ssh jaist-lab@<node> 'sudo cat /var/lib/kubelet/config.yaml | grep -E \"rotate|tls\"'"
-    echo ""
-    echo "  3. このスクリプトを再実行:"
-    echo "     ./setup-metrics-server-certificates.sh"
 fi
 
 echo "=========================================="
