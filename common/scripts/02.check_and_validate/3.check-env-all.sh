@@ -2,7 +2,7 @@
 # 全ノードでSWAP確認（すべて無効であること）、containerd確認、FW確認
 # Production環境確認
 echo "*** Production ***"
-for host in master01 master02 master03 node01 node02 ; do
+for host in master01 master02 master03 node01 node02 dlcsv1 dlcsv2  ; do
     echo "=== $host ==="
     echo -n "   swap     :"
     ssh jaist-lab@$host "free -h | grep -i swap"
@@ -15,7 +15,7 @@ done
 echo " "
 
 echo "*** Development ***"
-for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 ; do
+for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 dlcsv5 ; do
     echo "=== $host ==="
     echo -n "   swap     :"
     ssh jaist-lab@$host "free -h | grep -i swap"
