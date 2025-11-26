@@ -43,3 +43,9 @@ helm_enabled: true
 kube_authorization_modes:
   - Node
   - RBAC
+
+# etcd設定
+etcd_data_dir: /var/lib/etcd
+
+# etcd専用ディスクの要件チェック（Masterノードのみ）
+etcd_deployment_type: host  # コンテナではなくホストプロセスとして実行
