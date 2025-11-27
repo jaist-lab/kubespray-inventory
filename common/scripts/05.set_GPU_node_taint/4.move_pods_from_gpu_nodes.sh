@@ -15,7 +15,7 @@ NC='\033[0m'
 
 echo ""
 echo "=== GPUノード上の既存Pod確認 ==="
-GPU_PODS=$(kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2' || echo "")
+GPU_PODS=$(kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2|rtxsv1' || echo "")
 
 if [ -z "$GPU_PODS" ]; then
     echo "移動対象のPodはありません"
@@ -115,4 +115,4 @@ echo "移動処理数: ${MOVE_COUNT}"
 # 結果確認
 echo ""
 echo "=== 移動後のGPUノード上Pod ==="
-kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2' | awk '{print $1, $2, $8}' | column -t
+kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2|rtxsv1' | awk '{print $1, $2, $8}' | column -t
