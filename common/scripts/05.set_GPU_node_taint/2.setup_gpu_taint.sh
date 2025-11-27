@@ -43,20 +43,10 @@ check_environment() {
         exit 1
     fi
     
-    # Ansible Ping
-    echo "[1/3] Ansible Ping テスト..."
-    cd "${KUBESPRAY_DIR}"
-    ansible -i "${INVENTORY_DIR}/hosts.yml" all -m ping -o
-    
     # ホスト名確認
     echo ""
-    echo "[2/3] ホスト名確認..."
+    echo "ホスト名確認..."
     ansible -i "${INVENTORY_DIR}/hosts.yml" all -a "hostname" -o
-    
-    # システム情報確認
-    echo ""
-    echo "[3/3] システム情報確認..."
-    ansible -i "${INVENTORY_DIR}/hosts.yml" all -m setup -a "filter=ansible_distribution*" -o
 }
 
 case $ENV_CHOICE in
