@@ -47,6 +47,8 @@ check_environment() {
     echo ""
     echo "ホスト名確認..."
     ansible -i "${INVENTORY_DIR}/hosts.yml" all -a "hostname" -o
+    echo ""
+    echo ""
 }
 
 case $ENV_CHOICE in
