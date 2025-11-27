@@ -66,6 +66,7 @@ case $ENV_CHOICE in
         echo "dlcsv1にTaint設定中..."
         if kubectl taint node dlcsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
             echo -e "${GREEN}✅ dlcsv1: Taint設定成功${NC}"
+            kubectl describe node dlcsv1 | grep -A 5 Taints
         else
             echo -e "${RED}❌ dlcsv1: Taint設定失敗${NC}"
             exit 1
@@ -76,6 +77,8 @@ case $ENV_CHOICE in
         echo "dlcsv2にTaint設定中..."
         if kubectl taint node dlcsv2 dedicated=gpu-compute:NoSchedule --overwrite; then
             echo -e "${GREEN}✅ dlcsv2: Taint設定成功${NC}"
+            kubectl describe node dlcsv2 | grep -A 5 Taints
+
         else
             echo -e "${RED}❌ dlcsv2: Taint設定失敗${NC}"
             exit 1
@@ -87,6 +90,7 @@ case $ENV_CHOICE in
         echo "rtxsv1にTaint設定中..."
         if kubectl taint node rtxsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
             echo -e "${GREEN}✅ rtxsv1: Taint設定成功${NC}"
+            kubectl describe node rtxsv1 | grep -A 5 Taints
         else
             echo -e "${RED}❌ rtxsv1: Taint設定失敗${NC}"
             exit 1
