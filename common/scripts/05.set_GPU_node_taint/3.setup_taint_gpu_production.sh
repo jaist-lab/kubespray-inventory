@@ -1,5 +1,5 @@
 #!/bin/bash
-# 2.setup_taint_gpu_node.sh
+# 3.setup_taint_gpu_node.sh
 # GPU Taint設定スクリプト
 
 set -e

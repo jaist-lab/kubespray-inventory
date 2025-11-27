@@ -1,5 +1,5 @@
 #!/bin/bash
-# 4.post_check_environment.sh
+# 5.post_check_environment.sh
 # Taint設定後確認スクリプト
 
 

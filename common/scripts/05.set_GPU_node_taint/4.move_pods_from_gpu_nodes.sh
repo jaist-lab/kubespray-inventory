@@ -1,5 +1,5 @@
 #!/bin/bash
-# 3.move_pods_from_gpu_nodes.sh
+# 4.move_pods_from_gpu_nodes.sh
 # 既存Pod移動スクリプト（DaemonSet除外版）
 
 set -e
