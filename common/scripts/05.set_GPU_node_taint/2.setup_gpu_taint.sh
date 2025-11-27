@@ -62,6 +62,8 @@ check_environment() {
 case $ENV_CHOICE in
     1)
         check_environment "Production" "${KUBESPRAY_DIR}/inventory/production"
+        export KUBECONFIG="~/.kube/config-production"
+
         # dlcsv1にTaint設定
         echo "dlcsv1にTaint設定中..."
         if kubectl taint node dlcsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
@@ -86,6 +88,8 @@ case $ENV_CHOICE in
         ;;
     2)
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
+        export KUBECONFIG="~/.kube/config-development"
+
         # rtxsv1にTaint設定
         echo "rtxsv1にTaint設定中..."
         if kubectl taint node rtxsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
