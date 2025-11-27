@@ -19,7 +19,7 @@ NC='\033[0m'
 
 echo ""
 echo "=== GPUノード上のPod一覧 ==="
-GPU_PODS=$(kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2' || true)
+GPU_PODS=$(kubectl get pods --all-namespaces -o wide | grep -E 'dlcsv1|dlcsv2|rtxsv1' || true)
 
 if [ -z "$GPU_PODS" ]; then
     echo "GPUノード上にPodはありません"
@@ -105,5 +105,8 @@ echo "=== 詳細情報 ==="
 echo "ノード別Pod配置:"
 DLCSV1_COUNT=$(echo "$GPU_PODS" | grep -c dlcsv1 || echo 0)
 DLCSV2_COUNT=$(echo "$GPU_PODS" | grep -c dlcsv2 || echo 0)
+RTXSV1_COUNT=$(echo "$GPU_PODS" | grep -c rtxsv1 || echo 0)
+
 echo "  dlcsv1: ${DLCSV1_COUNT} Pods"
 echo "  dlcsv2: ${DLCSV2_COUNT} Pods"
+echo "  rtxsv1: ${RTXSV1_COUNT} Pods"
