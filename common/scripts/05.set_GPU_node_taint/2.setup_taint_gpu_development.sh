@@ -19,7 +19,7 @@ echo "対象ノード: rtxsv1"
 echo "Taint: dedicated=gpu-compute:NoSchedule"
 echo ""
 
-# dlcsv1にTaint設定
+# rtxsv1にTaint設定
 echo "rtxsv1にTaint設定中..."
 if kubectl taint node rtxsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
     echo -e "${GREEN}✅ rtxsv1: Taint設定成功${NC}"
@@ -27,8 +27,6 @@ else
     echo -e "${RED}❌ rtxsv1: Taint設定失敗${NC}"
     exit 1
 fi
-
-
 
 echo ""
 echo "=== Taint設定確認 ==="
