@@ -58,13 +58,38 @@ for i in "${!GPU_NODES[@]}"; do
     echo ""
     echo "🔍 $NODE_NAME ($NODE_IP) の状況確認:"
     
-    # NVIDIAドライバー確認
-    driver_check=$(ssh jaist-lab@$NODE_IP "nvidia-smi --version 2>/dev/null || echo 'NO_DRIVER'")
+    # NVIDIAドライバー確認（複数のコマンドを試行）
+    driver_check=$(ssh jaist-lab@$NODE_IP "
+        # まずnvidia-smiの存在確認
+        if command -v nvidia-smi &> /dev/null; then
+            # nvidia-smi --version を試行（新しいバージョン用）
+            if nvidia-smi --version 2>/dev/null; then
+                exit 0
+            # nvidia-smi -q を試行（古いバージョン用）
+            elif nvidia-smi -q 2>/dev/null | head -1; then
+                exit 0
+            # 単純にnvidia-smiを実行（最終手段）
+            elif nvidia-smi 2>/dev/null | head -1; then
+                exit 0
+            fi
+        fi
+        echo 'NO_DRIVER'
+    ")
+    
     if [[ "$driver_check" == *"NO_DRIVER"* ]]; then
         echo -e "  ${YELLOW}⚠️  NVIDIAドライバー未検出 - 準備が必要${NC}"
         need_preparation=true
     else
         echo -e "  ${GREEN}✅ NVIDIAドライバー検出済み${NC}"
+        # ドライバー情報を表示（デバッグ用）
+        driver_version=$(ssh jaist-lab@$NODE_IP "
+            if nvidia-smi --version 2>/dev/null; then
+                nvidia-smi --version | grep 'NVIDIA-SMI version' || nvidia-smi --version | head -1
+            else
+                nvidia-smi 2>/dev/null | grep 'Driver Version' | awk '{print \$3}' || echo '(バージョン情報取得不可)'
+            fi
+        ")
+        echo -e "     ドライバー: ${driver_version}"
     fi
     
     # カーネルヘッダー確認
