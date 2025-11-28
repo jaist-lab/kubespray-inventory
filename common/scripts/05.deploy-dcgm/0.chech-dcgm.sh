@@ -59,15 +59,15 @@ case $ENV_CHOICE in
         check_environment "Production" "${KUBESPRAY_DIR}/inventory/production"
         export KUBECONFIG=~/.kube/config-production
         # Productionの対象ノード
-        GPU_NODES=("dlp1" "dlp2")
-        GPU_NODE_IPS=("172.16.100.41" "172.16.100.42")
+        GPU_NODES=("dlcsv1" "dlcsv2")
+        GPU_NODE_IPS=("172.16.100.31" "172.16.100.32")
         ;;
     2)
         check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
         export KUBECONFIG=~/.kube/config-development
         # Developmentの対象ノード
-        GPU_NODES=("dlcsv1" "dlcsv2")
-        GPU_NODE_IPS=("172.16.100.31" "172.16.100.32")
+        GPU_NODES=("rtxsv1")
+        GPU_NODE_IPS=("172.16.100.41" )
         ;;
     *)
         echo -e "${RED}無効な選択肢です。1または2を選択してください。${NC}"
