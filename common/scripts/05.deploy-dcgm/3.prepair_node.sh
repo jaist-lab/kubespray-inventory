@@ -1,10 +1,52 @@
-# GPUノード準備スクリプト（条件付き実行）
+#!/bin/bash
+# GPUノード準備スクリプト（環境別対応版・条件付き実行）
 
 echo "🔧 GPUノード準備確認"
 echo "=================="
 
-GPU_NODES=("172.16.100.31" "172.16.100.32")
-NODE_NAMES=("dlcsv1" "dlcsv2")
+set -e
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 環境選択
+echo "GPUノード準備を実行する環境を選択してください:"
+echo "  1) Production"
+echo "  2) Development"
+echo ""
+read -p "選択 (1/2): " ENV_CHOICE
+
+# 環境別の設定
+case $ENV_CHOICE in
+    1)
+        echo -e "${GREEN}Production環境を選択${NC}"
+        export KUBECONFIG=~/.kube/config-production
+        GPU_NODES=("172.16.100.31" "172.16.100.32")
+        NODE_NAMES=("dlcsv1" "dlcsv2")
+        ENV_NAME="Production"
+        ;;
+    2)
+        echo -e "${GREEN}Development環境を選択${NC}"
+        export KUBECONFIG=~/.kube/config-development
+        GPU_NODES=("172.16.100.41")
+        NODE_NAMES=("rtxsv1")
+        ENV_NAME="Development"
+        ;;
+    *)
+        echo -e "${RED}無効な選択肢です。1または2を選択してください。${NC}"
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "=========================================="
+echo "${ENV_NAME}環境のGPUノード準備"
+echo "対象ノード: ${NODE_NAMES[@]}"
+echo "=========================================="
+echo ""
 
 # 準備が必要かどうかを確認
 need_preparation=false
@@ -19,34 +61,34 @@ for i in "${!GPU_NODES[@]}"; do
     # NVIDIAドライバー確認
     driver_check=$(ssh jaist-lab@$NODE_IP "nvidia-smi --version 2>/dev/null || echo 'NO_DRIVER'")
     if [[ "$driver_check" == *"NO_DRIVER"* ]]; then
-        echo "  ⚠️ NVIDIAドライバー未検出 - 準備が必要"
+        echo -e "  ${YELLOW}⚠️  NVIDIAドライバー未検出 - 準備が必要${NC}"
         need_preparation=true
     else
-        echo "  ✅ NVIDIAドライバー検出済み"
+        echo -e "  ${GREEN}✅ NVIDIAドライバー検出済み${NC}"
     fi
     
     # カーネルヘッダー確認
     kernel_headers=$(ssh jaist-lab@$NODE_IP "dpkg -l | grep linux-headers-\$(uname -r) || echo 'NO_HEADERS'")
     if [[ "$kernel_headers" == *"NO_HEADERS"* ]]; then
-        echo "  ⚠️ カーネルヘッダー未インストール - 準備が必要"
+        echo -e "  ${YELLOW}⚠️  カーネルヘッダー未インストール - 準備が必要${NC}"
         need_preparation=true
     else
-        echo "  ✅ カーネルヘッダー確認済み"
+        echo -e "  ${GREEN}✅ カーネルヘッダー確認済み${NC}"
     fi
     
     # containerd確認
     containerd_status=$(ssh jaist-lab@$NODE_IP "systemctl is-active containerd 2>/dev/null || echo 'INACTIVE'")
     if [[ "$containerd_status" != "active" ]]; then
-        echo "  ❌ containerd未稼働 - 要確認"
+        echo -e "  ${RED}❌ containerd未稼働 - 要確認${NC}"
         need_preparation=true
     else
-        echo "  ✅ containerd稼働中"
+        echo -e "  ${GREEN}✅ containerd稼働中${NC}"
     fi
 done
 
 if [ "$need_preparation" = true ]; then
     echo ""
-    echo "🔧 GPUノード準備を実行します..."
+    echo -e "${YELLOW}🔧 ${ENV_NAME}環境のGPUノード準備を実行します...${NC}"
     
     # GPUノード準備実行
     for i in "${!GPU_NODES[@]}"; do
@@ -79,7 +121,7 @@ if [ "$need_preparation" = true ]; then
             fi
         "
         
-        # 🔧 NEW: 監視ポート開放
+        # 監視ポート開放
         echo "  - 監視ポート開放..."
         ssh jaist-lab@$NODE_IP "
             # UFWでDCGM Exporterポート開放
@@ -98,11 +140,22 @@ if [ "$need_preparation" = true ]; then
                 sudo systemctl enable containerd
             fi
         "
+        
+        echo -e "  ${GREEN}✅ $NODE_NAME の準備完了${NC}"
     done
     
     echo ""
-    echo "✅ GPUノード準備完了"
+    echo -e "${GREEN}✅ ${ENV_NAME}環境のGPUノード準備完了${NC}"
 else
     echo ""
-    echo "✅ GPUノード準備は不要です（環境は既に整っています）"
+    echo -e "${GREEN}✅ ${ENV_NAME}環境のGPUノード準備は不要です（環境は既に整っています）${NC}"
 fi
+
+echo ""
+echo "=========================================="
+echo "準備完了サマリー"
+echo "=========================================="
+echo "環境: ${ENV_NAME}"
+echo "対象ノード数: ${#NODE_NAMES[@]}"
+echo "ノード: ${NODE_NAMES[@]}"
+echo "=========================================="
