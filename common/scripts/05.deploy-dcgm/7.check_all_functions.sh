@@ -1,12 +1,64 @@
 #!/bin/bash
-# GPU Operator + 監視統合 一括動作確認スクリプト（最終修正版）
+# GPU Operator + 監視統合 一括動作確認スクリプト（環境別対応版）
+
+echo "🔍 GPU Operator + 監視統合 一括動作確認"
+echo "========================================"
+
+set -e
+
+# 色定義
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
 # =======================================================
-# 📌 クリーンアップ関数とトラップ設定 (追加)
+# 📌 環境選択
 # =======================================================
-# スクリプト終了時にポートフォワーディングプロセスを確実に停止するための関数
+echo "確認する環境を選択してください:"
+echo "  1) Production"
+echo "  2) Development"
+echo ""
+read -p "選択 (1/2): " ENV_CHOICE
+
+# 環境別の設定
+case $ENV_CHOICE in
+    1)
+        echo -e "${GREEN}Production環境を選択${NC}"
+        export KUBECONFIG=~/.kube/config-production
+        GPU_NODES=("dlcsv1" "dlcsv2")
+        EXPECTED_GPU_COUNT=8  # 期待されるGPU総数（要調整）
+        EXPECTED_NODE_COUNT=2
+        ENV_NAME="Production"
+        ;;
+    2)
+        echo -e "${GREEN}Development環境を選択${NC}"
+        export KUBECONFIG=~/.kube/config-development
+        GPU_NODES=("rtxsv1")
+        EXPECTED_GPU_COUNT=1  # RTX 4090 x 1
+        EXPECTED_NODE_COUNT=1
+        ENV_NAME="Development"
+        ;;
+    *)
+        echo -e "${RED}無効な選択肢です。1または2を選択してください。${NC}"
+        exit 1
+        ;;
+esac
+
+echo ""
+echo "=========================================="
+echo "${ENV_NAME}環境 一括動作確認"
+echo "対象GPUノード: ${GPU_NODES[@]}"
+echo "期待GPU数: ${EXPECTED_GPU_COUNT}"
+echo "=========================================="
+echo ""
+
+# =======================================================
+# 📌 クリーンアップ関数とトラップ設定
+# =======================================================
 cleanup() {
-    if [ -n "$PF_PID" ] && ps -p $PF_PID > /dev/null; then
+    if [ -n "$PF_PID" ] && ps -p $PF_PID > /dev/null 2>&1; then
         kill $PF_PID 2>/dev/null
         echo "Port-forwarding PID $PF_PID を停止しました。"
     fi
@@ -14,75 +66,90 @@ cleanup() {
     kubectl delete pod gpu-quick-test --ignore-not-found=true >/dev/null 2>&1
 }
 
-# スクリプトが終了 (0, 1, 2, 3, EXIT) する際に cleanup 関数を実行
 trap cleanup EXIT
 
-echo "🔍 GPU Operator + 監視統合 一括動作確認"
-echo "======================================"
-
 # 基本情報収集
-NODE_IP=$(kubectl get nodes node101 -o jsonpath='{.status.addresses[0].address}' 2>/dev/null)
+FIRST_NODE="${GPU_NODES[0]}"
+NODE_IP=$(kubectl get nodes $FIRST_NODE -o jsonpath='{.status.addresses[0].address}' 2>/dev/null)
 PROMETHEUS_EXISTS=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | wc -l)
 
-echo "=== 📊 基本状況確認 ==="
-echo "クラスターアクセス: $(kubectl cluster-info --request-timeout=5s >/dev/null 2>&1 && echo '✅ 成功' || echo '❌ 失敗')"
-echo "監視システム: $([ $PROMETHEUS_EXISTS -gt 0 ] && echo '✅ 検出済み' || echo 'ℹ️ 未検出')"
+echo -e "${BLUE}=== 📊 基本状況確認 ===${NC}"
+CLUSTER_ACCESS=$(kubectl cluster-info --request-timeout=5s >/dev/null 2>&1 && echo "✅ 成功" || echo "❌ 失敗")
+echo "クラスターアクセス: $CLUSTER_ACCESS"
+echo "監視システム: $([ $PROMETHEUS_EXISTS -gt 0 ] && echo '✅ 検出済み' || echo 'ℹ️  未検出')"
+echo "ノードIP: ${NODE_IP:-未取得}"
 
 # GPU自動検出確認
 echo ""
-echo "=== 🎯 GPU自動検出確認 ==="
-GPU_NODES=$(kubectl get nodes -l feature.node.kubernetes.io/pci-10de.present=true --no-headers | wc -l)
+echo -e "${BLUE}=== 🎯 GPU自動検出確認 ===${NC}"
+
+# GPUノード数確認（環境に応じた）
+DETECTED_GPU_NODES=0
+for node in "${GPU_NODES[@]}"; do
+    if kubectl get node $node -o json 2>/dev/null | jq -e '.metadata.labels["feature.node.kubernetes.io/pci-10de.present"] == "true"' >/dev/null 2>&1; then
+        DETECTED_GPU_NODES=$((DETECTED_GPU_NODES + 1))
+    fi
+done
+
 # GPUリソース計算の安全化
-GPU_RESOURCES_RAW=$(kubectl get nodes -o jsonpath='{.items[*].status.allocatable.nvidia\.com/gpu}' 2>/dev/null | tr ' ' '\n' | grep -v '^$' | paste -sd+ | bc 2>/dev/null || echo "0")
-GPU_RESOURCES=${GPU_RESOURCES_RAW:-0}
-echo "GPU検出ノード数: $GPU_NODES/2"
-echo "GPU総リソース数: $GPU_RESOURCES/8"
+GPU_RESOURCES=0
+for node in "${GPU_NODES[@]}"; do
+    NODE_GPU=$(kubectl get node $node -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' 2>/dev/null || echo "0")
+    GPU_RESOURCES=$((GPU_RESOURCES + NODE_GPU))
+done
+
+echo "GPU検出ノード数: ${DETECTED_GPU_NODES}/${EXPECTED_NODE_COUNT}"
+echo "GPU総リソース数: ${GPU_RESOURCES}/${EXPECTED_GPU_COUNT}"
+
+# 各ノードのGPU数表示
+for node in "${GPU_NODES[@]}"; do
+    NODE_GPU=$(kubectl get node $node -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' 2>/dev/null || echo "0")
+    echo "  - ${node}: ${NODE_GPU} GPU"
+done
 
 # DaemonSet配置確認
 echo ""
-echo "=== 🚀 DaemonSet配置確認 ==="
-kubectl get daemonsets -n gpu-operator -o custom-columns="NAME:.metadata.name,READY:.status.numberReady,DESIRED:.status.desiredNumberScheduled" --no-headers | while read name ready desired; do
+echo -e "${BLUE}=== 🚀 DaemonSet配置確認 ===${NC}"
+kubectl get daemonsets -n gpu-operator -o custom-columns="NAME:.metadata.name,READY:.status.numberReady,DESIRED:.status.desiredNumberScheduled" --no-headers 2>/dev/null | while read name ready desired; do
     if [[ "$ready" == "$desired" ]] && [[ "$ready" =~ ^[0-9]+$ ]] && [[ "$ready" -gt 0 ]]; then
-        echo "✅ $name: $ready/$desired"
+        echo -e "${GREEN}✅ $name: $ready/$desired${NC}"
     elif [[ "$ready" == "0" ]] && [[ "$desired" == "0" ]]; then
-        echo "ℹ️ $name: $ready/$desired (未使用)"
+        echo -e "${YELLOW}ℹ️  $name: $ready/$desired (未使用)${NC}"
     else
-        echo "⚠️ $name: $ready/$desired"
+        echo -e "${YELLOW}⚠️  $name: $ready/$desired${NC}"
     fi
 done
 
 # =======================================================
-# 📈 DCGM Exporter動作確認 (修正セクション)
+# 📈 DCGM Exporter動作確認
 # =======================================================
 echo ""
-echo "=== 📈 DCGM Exporter動作確認 ==="
-DCGM_POD=$(kubectl get pods -n gpu-operator -l app=nvidia-dcgm-exporter --no-headers | head -1 | awk '{print $1}')
+echo -e "${BLUE}=== 📈 DCGM Exporter動作確認 ===${NC}"
+DCGM_POD=$(kubectl get pods -n gpu-operator -l app=nvidia-dcgm-exporter --no-headers 2>/dev/null | head -1 | awk '{print $1}')
 METRIC_COUNT=0
-PF_PID="" # port-forwardingのPIDを初期化
+PF_PID=""
 
 if [ -n "$DCGM_POD" ] && [ "$DCGM_POD" != "" ]; then
     echo "DCGM Pod: ✅ $DCGM_POD"
     
-    # 🔧 修正: port-forwarding を使ってホスト側から curl でメトリクスを取得
-    # バックグラウンドでポートフォワーディングを開始
+    # port-forwarding を使ってホスト側から curl でメトリクスを取得
     kubectl port-forward -n gpu-operator "${DCGM_POD}" 9400:9400 > /dev/null 2>&1 &
     PF_PID=$!
     
-    sleep 3 # ポートフォワーディング開始を待つ
+    echo "ポートフォワーディング開始（3秒待機）..."
+    sleep 3
     
     # ホスト側の curl でメトリクスを取得し、数をカウント
-    METRIC_COUNT=$(curl -s http://localhost:9400/metrics 2>/dev/null | grep -c "DCGM_FI_DEV_GPU_UTIL" || echo "0")
+    METRIC_COUNT=$(curl -s --max-time 5 http://localhost:9400/metrics 2>/dev/null | grep -c "DCGM_FI_DEV_GPU_UTIL" || echo "0")
     
     if [ "$METRIC_COUNT" -gt 0 ]; then
-        echo "GPU メトリクス数: ✅ $METRIC_COUNT"
+        echo -e "${GREEN}GPU メトリクス数: ✅ $METRIC_COUNT${NC}"
     else
-        echo "GPU メトリクス数: ❌ 0"
+        echo -e "${RED}GPU メトリクス数: ❌ 0${NC}"
         echo "  📝 ヒント: port-forwarding 経由でメトリクス取得に失敗しました。"
     fi
-    
-    # PF_PIDはtrapでクリーンアップされるため、ここではkillしない
 else
-    echo "DCGM Pod: ❌ 未発見"
+    echo -e "${RED}DCGM Pod: ❌ 未発見${NC}"
     METRIC_COUNT=0
 fi
 
@@ -93,7 +160,7 @@ GPU_METRICS_PROM_COUNT=0
 
 if [ $PROMETHEUS_EXISTS -gt 0 ]; then
     echo ""
-    echo "=== 🔗 監視統合確認 ==="
+    echo -e "${BLUE}=== 🔗 監視統合確認 ===${NC}"
     
     # ServiceMonitor確認
     SERVICEMONITOR_EXISTS=$(kubectl get servicemonitor -n monitoring nvidia-dcgm-exporter --no-headers 2>/dev/null | wc -l)
@@ -103,34 +170,30 @@ if [ $PROMETHEUS_EXISTS -gt 0 ]; then
         # Prometheus Target確認
         echo "Target確認中（30秒待機）..."
         sleep 30
-        PROMETHEUS_POD=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers | head -1 | awk '{print $1}')
+        PROMETHEUS_POD=$(kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | head -1 | awk '{print $1}')
         if [ -n "$PROMETHEUS_POD" ] && [ "$PROMETHEUS_POD" != "" ]; then
-            
-            # 🔧 修正: Target確認時に Pod 内の wget が失敗した場合に備えて、Prometheus Pod の内部 IP を使用し、Pod内で curl (または wget) が存在しない場合を考慮する。
-            # ただし、Prometheus Podには通常 wget/curl がある前提で、元のロジックを維持し、wget -qO-で成功することを期待する。
-            # ここでは Pod 内コマンドの安全性を高めるため、エラー出力をさらに抑制し、数値比較を安全化する。
             DCGM_TARGET_COUNT=$(kubectl exec -n monitoring $PROMETHEUS_POD -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/targets' 2>/dev/null | grep -c "dcgm-exporter" 2>/dev/null || echo "0")
-            echo "Prometheus Target: $([ $DCGM_TARGET_COUNT -gt 0 ] && echo "✅ ${DCGM_TARGET_COUNT}個検出" || echo "⚠️ 未検出")"
+            echo "Prometheus Target: $([ $DCGM_TARGET_COUNT -gt 0 ] && echo -e "${GREEN}✅ ${DCGM_TARGET_COUNT}個検出${NC}" || echo -e "${YELLOW}⚠️  未検出${NC}")"
             
             # GPU メトリクス取得確認
             if [ $DCGM_TARGET_COUNT -gt 0 ]; then
                 echo "メトリクス取得確認中（20秒待機）..."
                 sleep 20
                 GPU_METRICS_PROM_COUNT=$(kubectl exec -n monitoring $PROMETHEUS_POD -c prometheus -- wget -qO- 'http://localhost:9090/api/v1/query?query=DCGM_FI_DEV_GPU_UTIL' 2>/dev/null | grep -c "DCGM_FI_DEV_GPU_UTIL" 2>/dev/null || echo "0")
-                echo "GPU メトリクス取得: $([ $GPU_METRICS_PROM_COUNT -gt 0 ] && echo "✅ ${GPU_METRICS_PROM_COUNT}個" || echo "⚠️ 未取得")"
+                echo "GPU メトリクス取得: $([ $GPU_METRICS_PROM_COUNT -gt 0 ] && echo -e "${GREEN}✅ ${GPU_METRICS_PROM_COUNT}個${NC}" || echo -e "${YELLOW}⚠️  未取得${NC}")"
             fi
         else
-            echo "Prometheus Pod: ❌ 未発見"
+            echo -e "${RED}Prometheus Pod: ❌ 未発見${NC}"
         fi
     fi
 fi
 
 # =======================================================
-# 🧪 GPU動作テスト (Podのクリーンアップは trap に任せる)
+# 🧪 GPU動作テスト
 # =======================================================
 echo ""
-echo "=== 🧪 GPU動作テスト ==="
-# 簡易GPUテスト
+echo -e "${BLUE}=== 🧪 GPU動作テスト ===${NC}"
+
 cat << 'EOF' | kubectl apply -f - >/dev/null 2>&1
 apiVersion: v1
 kind: Pod
@@ -141,7 +204,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: gpu-test
-    image: nvidia/cuda:12.8-runtime-ubuntu20.04
+    image: nvcr.io/nvidia/cuda:12.2.0-base-ubuntu22.04
     command: ["sh", "-c"]
     args:
     - |
@@ -159,97 +222,93 @@ spec:
         nvidia.com/gpu: 1
 EOF
 
-# テスト結果確認
 echo "GPUテスト実行中（45秒待機）..."
-# wait timeoutを長くする
 kubectl wait --for=condition=ready pod/gpu-quick-test --timeout=45s >/dev/null 2>&1
 sleep 15
 
 TEST_NODE=$(kubectl get pod gpu-quick-test -o jsonpath='{.spec.nodeName}' 2>/dev/null)
 TEST_LOG=$(kubectl logs gpu-quick-test 2>/dev/null | grep "GPU Test:" | head -1 || echo "GPU Test: ログ取得失敗")
 
-# Podの削除は trap に移行
-# kubectl delete pod gpu-quick-test --ignore-not-found=true >/dev/null 2>&1
-
-echo "テストPod配置先: $([ -n "$TEST_NODE" ] && echo "✅ $TEST_NODE" || echo "❌ 配置失敗")"
+echo "テストPod配置先: $([ -n "$TEST_NODE" ] && echo -e "${GREEN}✅ $TEST_NODE${NC}" || echo -e "${RED}❌ 配置失敗${NC}")"
 echo "GPU認識結果: $TEST_LOG"
 
+# =======================================================
+# 📊 総合評価
+# =======================================================
 echo ""
-echo "=== 📊 総合評価 ==="
+echo -e "${BLUE}=== 📊 総合評価 ===${NC}"
 SUCCESS_SCORE=0
 
-# 数値比較の安全化
-echo "GPU検出ノード評価: GPU_NODES=$GPU_NODES"
-if [ "$GPU_NODES" -eq 2 ] 2>/dev/null; then
+# GPU検出ノード評価
+if [ "$DETECTED_GPU_NODES" -eq "$EXPECTED_NODE_COUNT" ] 2>/dev/null; then
     SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
-    echo "✅ GPU自動検出: 成功"
+    echo -e "${GREEN}✅ GPU自動検出: 成功 (${DETECTED_GPU_NODES}/${EXPECTED_NODE_COUNT})${NC}"
 else
-    echo "❌ GPU自動検出: 要確認 (検出数: $GPU_NODES/2)"
+    echo -e "${RED}❌ GPU自動検出: 要確認 (検出数: ${DETECTED_GPU_NODES}/${EXPECTED_NODE_COUNT})${NC}"
 fi
 
-echo "GPUリソース評価: GPU_RESOURCES=$GPU_RESOURCES"
-if [ "$GPU_RESOURCES" -eq 8 ] 2>/dev/null; then
+# GPUリソース評価
+if [ "$GPU_RESOURCES" -eq "$EXPECTED_GPU_COUNT" ] 2>/dev/null; then
     SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
-    echo "✅ GPUリソース認識: 成功"
+    echo -e "${GREEN}✅ GPUリソース認識: 成功 (${GPU_RESOURCES}/${EXPECTED_GPU_COUNT})${NC}"
 else
-    echo "❌ GPUリソース認識: 要確認 (認識数: $GPU_RESOURCES/8)"
+    echo -e "${RED}❌ GPUリソース認識: 要確認 (認識数: ${GPU_RESOURCES}/${EXPECTED_GPU_COUNT})${NC}"
 fi
 
-echo "DCGM評価: DCGM_POD=$DCGM_POD, METRIC_COUNT=$METRIC_COUNT"
+# DCGM評価
 if [ -n "$DCGM_POD" ] && [ "$METRIC_COUNT" -gt 0 ] 2>/dev/null; then
     SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
-    echo "✅ DCGM Exporter: 成功"
+    echo -e "${GREEN}✅ DCGM Exporter: 成功${NC}"
 else
-    echo "❌ DCGM Exporter: 要確認"
+    echo -e "${RED}❌ DCGM Exporter: 要確認${NC}"
 fi
 
-echo "テスト評価: TEST_NODE=$TEST_NODE"
+# テスト評価
 if [ -n "$TEST_NODE" ]; then
     SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
-    echo "✅ GPU動作テスト: 成功"
+    echo -e "${GREEN}✅ GPU動作テスト: 成功${NC}"
 else
-    echo "❌ GPU動作テスト: 要確認"
+    echo -e "${RED}❌ GPU動作テスト: 要確認${NC}"
 fi
 
-# 監視統合評価（任意）
-echo "監視統合評価: PROMETHEUS_EXISTS=$PROMETHEUS_EXISTS, SERVICEMONITOR_EXISTS=$SERVICEMONITOR_EXISTS, DCGM_TARGET_COUNT=$DCGM_TARGET_COUNT"
+# 監視統合評価
 if [ $PROMETHEUS_EXISTS -gt 0 ]; then
     if [ $SERVICEMONITOR_EXISTS -gt 0 ] && [ $DCGM_TARGET_COUNT -gt 0 ] 2>/dev/null; then
         SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
-        echo "✅ 監視統合: 成功"
+        echo -e "${GREEN}✅ 監視統合: 成功${NC}"
     else
-        echo "⚠️ 監視統合: 要調整"
+        echo -e "${YELLOW}⚠️  監視統合: 要調整${NC}"
     fi
 else
-    SUCCESS_SCORE=$((SUCCESS_SCORE + 20))  # 単体でも成功とみなす
-    echo "ℹ️ 監視統合: 対象外（GPU Operator単体）"
+    SUCCESS_SCORE=$((SUCCESS_SCORE + 20))
+    echo -e "${BLUE}ℹ️  監視統合: 対象外（GPU Operator単体）${NC}"
 fi
 
 echo ""
-echo "🎯 総合成功度: ${SUCCESS_SCORE}%"
+echo -e "${BLUE}🎯 総合成功度: ${SUCCESS_SCORE}%${NC}"
 
 if [ $SUCCESS_SCORE -eq 100 ]; then
-    echo "🎉 GPU環境構築完全成功！"
+    echo -e "${GREEN}🎉 ${ENV_NAME}環境 GPU環境構築完全成功！${NC}"
 elif [ $SUCCESS_SCORE -ge 80 ]; then
-    echo "✅ GPU環境構築成功（一部調整推奨）"
+    echo -e "${GREEN}✅ ${ENV_NAME}環境 GPU環境構築成功（一部調整推奨）${NC}"
 else
-    echo "⚠️ GPU環境構築要確認（詳細診断推奨）"
+    echo -e "${YELLOW}⚠️  ${ENV_NAME}環境 GPU環境構築要確認（詳細診断推奨）${NC}"
 fi
 
 echo ""
-echo "=== 📋 アクセス情報 ==="
+echo -e "${BLUE}=== 📋 アクセス情報 ===${NC}"
 echo "GPU確認: kubectl get nodes -o custom-columns='NAME:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu'"
-if [ $PROMETHEUS_EXISTS -gt 0 ]; then
+if [ $PROMETHEUS_EXISTS -gt 0 ] && [ -n "$NODE_IP" ]; then
     echo "Prometheus: http://$NODE_IP:32090/targets"
-    echo "Grafana: http://$NODE_IP:32000 (admin/gpu-monitoring-2024)"
+    echo "Grafana: http://$NODE_IP:32000"
 fi
 
 echo ""
-echo "=== 🔧 次のアクション ==="
+echo -e "${BLUE}=== 🔧 次のアクション ===${NC}"
 if [ $SUCCESS_SCORE -lt 80 ]; then
-    echo "詳細診断推奨: ./detailed-diagnosis.sh"
-    echo "簡易修復: ./simple-troubleshoot.sh"
+    echo "詳細診断推奨: kubectl describe nodes ${GPU_NODES[@]}"
+    echo "Pod確認: kubectl get pods -n gpu-operator -o wide"
 fi
 
 echo ""
-echo "✅ 一括動作確認完了"
+echo -e "${GREEN}✅ ${ENV_NAME}環境 一括動作確認完了${NC}"
