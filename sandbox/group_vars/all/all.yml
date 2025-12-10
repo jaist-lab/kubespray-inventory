@@ -1,6 +1,6 @@
 ---
 ## Ansible設定
-ansible_user: jaist-lab
+ansible_user: jaistlab
 ansible_become: true
 ansible_ssh_pipelining: true
 ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
