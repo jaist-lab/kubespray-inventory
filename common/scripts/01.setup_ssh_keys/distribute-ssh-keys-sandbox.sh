@@ -2,8 +2,8 @@
 # Sandbox環境 SSH公開鍵配布
 
 NODES="sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 sandbox-node02"
-USER="jaist-lab"
-PASSWORD="jaileon02"  # 初回接続用パスワード
+USER="jaistlab"
+PASSWORD='j4157Adm!n'  # 初回接続用パスワード
 
 echo "=========================================="
 echo "Development環境 SSH公開鍵配布"
