@@ -8,7 +8,7 @@ PROD_HOSTS="master01 master02 master03 node01 node02 dlcsv1 dlcsv2 "
 PROD_FAILED=""
 
 for host in $PROD_HOSTS; do
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaist-lab@$host "hostname" &>/dev/null; then
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaistlab@$host "hostname" &>/dev/null; then
         echo "✓ $host: OK"
     else
         echo "✗ $host: FAILED"
@@ -24,7 +24,7 @@ DEV_HOSTS="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 "
 DEV_FAILED=""
 
 for host in $DEV_HOSTS; do
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaist-lab@$host "hostname" &>/dev/null; then
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaistlab@$host "hostname" &>/dev/null; then
         echo "✓ $host: OK"
     else
         echo "✗ $host: FAILED"
@@ -40,7 +40,7 @@ DEV_HOSTS="sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 san
 DEV_FAILED=""
 
 for host in $DEV_HOSTS; do
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaist-lab@$host "hostname" &>/dev/null; then
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes jaistlab@$host "hostname" &>/dev/null; then
         echo "✓ $host: OK"
     else
         echo "✗ $host: FAILED"
