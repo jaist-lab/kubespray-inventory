@@ -59,7 +59,7 @@ for i in "${!GPU_NODES[@]}"; do
     echo "🔍 $NODE_NAME ($NODE_IP) の状況確認:"
     
     # NVIDIAドライバー確認（複数のコマンドを試行）
-    driver_check=$(ssh jaist-lab@$NODE_IP "
+    driver_check=$(ssh jaistlab@$NODE_IP "
         # まずnvidia-smiの存在確認
         if command -v nvidia-smi &> /dev/null; then
             # nvidia-smi --version を試行（新しいバージョン用）
@@ -82,7 +82,7 @@ for i in "${!GPU_NODES[@]}"; do
     else
         echo -e "  ${GREEN}✅ NVIDIAドライバー検出済み${NC}"
         # ドライバー情報を表示（デバッグ用）
-        driver_version=$(ssh jaist-lab@$NODE_IP "
+        driver_version=$(ssh jaistlab@$NODE_IP "
             if nvidia-smi --version 2>/dev/null; then
                 nvidia-smi --version | grep 'NVIDIA-SMI version' || nvidia-smi --version | head -1
             else
@@ -93,7 +93,7 @@ for i in "${!GPU_NODES[@]}"; do
     fi
     
     # カーネルヘッダー確認
-    kernel_headers=$(ssh jaist-lab@$NODE_IP "dpkg -l | grep linux-headers-\$(uname -r) || echo 'NO_HEADERS'")
+    kernel_headers=$(ssh jaistlab@$NODE_IP "dpkg -l | grep linux-headers-\$(uname -r) || echo 'NO_HEADERS'")
     if [[ "$kernel_headers" == *"NO_HEADERS"* ]]; then
         echo -e "  ${YELLOW}⚠️  カーネルヘッダー未インストール - 準備が必要${NC}"
         need_preparation=true
@@ -102,7 +102,7 @@ for i in "${!GPU_NODES[@]}"; do
     fi
     
     # containerd確認
-    containerd_status=$(ssh jaist-lab@$NODE_IP "systemctl is-active containerd 2>/dev/null || echo 'INACTIVE'")
+    containerd_status=$(ssh jaistlab@$NODE_IP "systemctl is-active containerd 2>/dev/null || echo 'INACTIVE'")
     if [[ "$containerd_status" != "active" ]]; then
         echo -e "  ${RED}❌ containerd未稼働 - 要確認${NC}"
         need_preparation=true
@@ -125,7 +125,7 @@ if [ "$need_preparation" = true ]; then
         
         # カーネルヘッダーのインストール
         echo "  - カーネルヘッダー確認・インストール..."
-        ssh jaist-lab@$NODE_IP "
+        ssh jaistlab@$NODE_IP "
             if ! dpkg -l | grep -q linux-headers-\$(uname -r); then
                 echo '    カーネルヘッダーをインストール中...'
                 sudo apt update
@@ -137,7 +137,7 @@ if [ "$need_preparation" = true ]; then
         
         # 必要なパッケージのインストール
         echo "  - 必要パッケージ確認・インストール..."
-        ssh jaist-lab@$NODE_IP "
+        ssh jaistlab@$NODE_IP "
             if ! dpkg -l | grep -q build-essential; then
                 echo '    build-essentialをインストール中...'
                 sudo apt install -y build-essential
@@ -148,7 +148,7 @@ if [ "$need_preparation" = true ]; then
         
         # 監視ポート開放
         echo "  - 監視ポート開放..."
-        ssh jaist-lab@$NODE_IP "
+        ssh jaistlab@$NODE_IP "
             # UFWでDCGM Exporterポート開放
             sudo ufw allow 9400/tcp
             echo '    DCGMポート9400開放完了'
@@ -156,7 +156,7 @@ if [ "$need_preparation" = true ]; then
         
         # containerdランタイム確認
         echo "  - containerdランタイム確認..."
-        ssh jaist-lab@$NODE_IP "
+        ssh jaistlab@$NODE_IP "
             if systemctl is-active --quiet containerd; then
                 echo '    containerd: 動作中'
             else

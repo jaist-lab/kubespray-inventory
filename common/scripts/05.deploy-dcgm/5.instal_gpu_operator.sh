@@ -80,7 +80,7 @@ GPU_DETECTION=false
 for i in "${!GPU_NODE_IPS[@]}"; do
     node_name="${GPU_NODES[$i]}"
     node_ip="${GPU_NODE_IPS[$i]}"
-    gpu_count=$(ssh jaist-lab@$node_ip "lspci | grep -i nvidia | wc -l" 2>/dev/null)
+    gpu_count=$(ssh jaistlab@$node_ip "lspci | grep -i nvidia | wc -l" 2>/dev/null)
     if [ "$gpu_count" -gt 0 ]; then
         echo "✅ ${node_name}: NVIDIA GPU ${gpu_count}個検出"
         GPU_DETECTION=true

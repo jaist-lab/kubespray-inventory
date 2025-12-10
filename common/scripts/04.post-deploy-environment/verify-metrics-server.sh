@@ -113,7 +113,7 @@ CERT_SUCCESS=0
 CERT_TOTAL=0
 for node in $NODE_IPS; do
     CERT_TOTAL=$((CERT_TOTAL + 1))
-    if ssh jaist-lab@$node "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@$node "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ $node${NC}"
         CERT_SUCCESS=$((CERT_SUCCESS + 1))
     else

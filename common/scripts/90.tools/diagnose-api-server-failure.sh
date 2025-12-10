@@ -3,7 +3,7 @@ echo "=========================================="
 echo "API Server起動失敗診断"
 echo "=========================================="
 
-ssh jaist-lab@172.16.100.101 << 'REMOTE'
+ssh jaistlab@172.16.100.101 << 'REMOTE'
 echo "[1] etcd状態"
 sudo systemctl status etcd --no-pager
 

@@ -128,7 +128,7 @@ for node in $NODE_IPS; do
     # 3.1: kubelet再起動
     echo ""
     echo "[1/4] kubelet再起動..."
-    if ssh jaist-lab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
         echo -e "${GREEN}✓ kubelet再起動成功${NC}"
     else
         echo -e "${RED}✗ kubelet再起動失敗${NC}"
@@ -152,7 +152,7 @@ for node in $NODE_IPS; do
         kubectl get csr | tail -5
         echo ""
         echo "kubeletログ:"
-        ssh jaist-lab@${node} "sudo journalctl -u kubelet --since '30 seconds ago' | grep -i csr | tail -5" 2>/dev/null || echo "ログ取得失敗"
+        ssh jaistlab@${node} "sudo journalctl -u kubelet --since '30 seconds ago' | grep -i csr | tail -5" 2>/dev/null || echo "ログ取得失敗"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
@@ -184,12 +184,12 @@ for node in $NODE_IPS; do
     echo "[4/4] 証明書生成確認（10秒待機）..."
     sleep 10
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ 証明書生成成功${NC}"
         
         # 証明書の詳細
         echo "証明書情報:"
-        ssh jaist-lab@${node} "sudo ls -lh /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null || echo "詳細取得失敗"
+        ssh jaistlab@${node} "sudo ls -lh /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null || echo "詳細取得失敗"
         
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
@@ -218,7 +218,7 @@ for node in $NODE_IPS; do
     NODE_NAME=$(kubectl get nodes -o wide | grep ${node} | awk '{print $1}')
     printf "%-20s " "${NODE_NAME} (${node}):"
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ 証明書あり${NC}"
     else
         echo -e "${RED}✗ 証明書なし${NC}"

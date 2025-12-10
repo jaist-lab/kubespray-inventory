@@ -10,7 +10,7 @@ file_list=(
     "group_vars/k8s_cluster/k8s-net-calico.yml:::5. group_vars/8s_cluster/k8s-net-calico.yml"
 )
 
-sample_dir="/home/jaist-lab/kubernetes/kubespray/inventory/sample"
+sample_dir="/home/jaistlab/kubernetes/kubespray/inventory/sample"
 
 # ファイルリストをループ処理
 for item in "${file_list[@]}"; do

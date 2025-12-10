@@ -60,9 +60,9 @@ echo "=========================================="
 for node in $NODE_IPS; do
     echo "  $node: serverTLSBootstrap確認中..."
     
-    if ! ssh jaist-lab@$node "sudo grep -q 'serverTLSBootstrap: true' /var/lib/kubelet/config.yaml" 2>/dev/null; then
+    if ! ssh jaistlab@$node "sudo grep -q 'serverTLSBootstrap: true' /var/lib/kubelet/config.yaml" 2>/dev/null; then
         echo "    設定追加中..."
-        ssh jaist-lab@$node "sudo sed -i '/rotateCertificates:/a serverTLSBootstrap: true' /var/lib/kubelet/config.yaml"
+        ssh jaistlab@$node "sudo sed -i '/rotateCertificates:/a serverTLSBootstrap: true' /var/lib/kubelet/config.yaml"
         echo "    ✓ 追加完了"
     else
         echo "    ✓ 既に設定済み"
@@ -87,7 +87,7 @@ for node in $NODE_IPS; do
     NODE_COUNT=$((NODE_COUNT + 1))
     echo "[$NODE_COUNT/$TOTAL_NODES] $node"
     
-    ssh jaist-lab@$node "sudo systemctl restart kubelet" && \
+    ssh jaistlab@$node "sudo systemctl restart kubelet" && \
         echo -e "${GREEN}  ✓ 成功${NC}" || \
         echo -e "${RED}  ✗ 失敗${NC}"
     
@@ -139,7 +139,7 @@ echo ""
 echo "証明書生成確認:"
 CERT_SUCCESS=0
 for node in $NODE_IPS; do
-    if ssh jaist-lab@$node "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@$node "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ $node${NC}"
         CERT_SUCCESS=$((CERT_SUCCESS + 1))
     else

@@ -86,8 +86,8 @@ for node in $ALL_NODE_IPS; do
     
     printf "[%d] %-20s " "$INDEX" "${NODE_NAME} (${node})"
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
-        EXPIRY=$(ssh jaist-lab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -enddate 2>/dev/null | cut -d= -f2")
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+        EXPIRY=$(ssh jaistlab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -enddate 2>/dev/null | cut -d= -f2")
         
         # Metrics取得状態確認
         METRICS=$(kubectl top node ${NODE_NAME} 2>/dev/null | tail -1 | awk '{print $2}')
@@ -250,13 +250,13 @@ for node_info in "${TARGET_NODES[@]}"; do
     # 既存証明書削除
     echo ""
     echo "[1/5] 既存証明書削除..."
-    ssh jaist-lab@${node} "sudo rm -f /var/lib/kubelet/pki/kubelet-server-*.pem" 2>/dev/null || true
+    ssh jaistlab@${node} "sudo rm -f /var/lib/kubelet/pki/kubelet-server-*.pem" 2>/dev/null || true
     echo "✓ 削除完了"
     
     # kubelet再起動
     echo ""
     echo "[2/5] kubelet再起動..."
-    if ssh jaist-lab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
         echo -e "${GREEN}✓ kubelet再起動成功${NC}"
     else
         echo -e "${RED}✗ kubelet再起動失敗${NC}"
@@ -297,12 +297,12 @@ for node_info in "${TARGET_NODES[@]}"; do
     echo "[5/5] 証明書生成確認（10秒待機）..."
     sleep 10
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ 証明書生成成功${NC}"
         
         # 証明書の詳細
         echo "証明書情報:"
-        ssh jaist-lab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null
+        ssh jaistlab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null
         
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else

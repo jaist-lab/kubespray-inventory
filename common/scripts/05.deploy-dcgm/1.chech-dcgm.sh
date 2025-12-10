@@ -120,7 +120,7 @@ echo "NVIDIA GPUハードウェアの存在確認..."
 for i in "${!GPU_NODES[@]}"; do
     node_name="${GPU_NODES[$i]}"
     node_ip="${GPU_NODE_IPS[$i]}"
-    gpu_check=$(ssh jaist-lab@$node_ip "lspci | grep -i nvidia | wc -l" 2>/dev/null || echo "0")
+    gpu_check=$(ssh jaistlab@$node_ip "lspci | grep -i nvidia | wc -l" 2>/dev/null || echo "0")
     echo "  $node_name ($node_ip): NVIDIA デバイス ${gpu_check}個検出"
 done
 
