@@ -110,9 +110,9 @@ for node in $NODE_IPS; do
         continue
     fi
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         # 証明書の有効期限を確認
-        EXPIRY=$(ssh jaist-lab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -enddate 2>/dev/null | cut -d= -f2")
+        EXPIRY=$(ssh jaistlab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -enddate 2>/dev/null | cut -d= -f2")
         echo -e "${GREEN}✓ ${NODE_NAME} (${node})${NC} - 証明書あり（有効期限: ${EXPIRY}）"
         EXISTING_CERTS=$((EXISTING_CERTS + 1))
         NODES_WITH_CERT+=("${node}:${NODE_NAME}")
@@ -283,7 +283,7 @@ for node_info in "${NODES_WITHOUT_CERT[@]}"; do
     # 3.1: kubelet再起動
     echo ""
     echo "[1/4] kubelet再起動..."
-    if ssh jaist-lab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo systemctl restart kubelet" 2>/dev/null; then
         echo -e "${GREEN}✓ kubelet再起動成功${NC}"
     else
         echo -e "${RED}✗ kubelet再起動失敗${NC}"
@@ -308,7 +308,7 @@ for node_info in "${NODES_WITHOUT_CERT[@]}"; do
         kubectl get csr | tail -5
         echo ""
         echo "kubeletログ:"
-        ssh jaist-lab@${node} "sudo journalctl -u kubelet --since '30 seconds ago' | grep -i csr | tail -10" 2>/dev/null || echo "ログ取得失敗"
+        ssh jaistlab@${node} "sudo journalctl -u kubelet --since '30 seconds ago' | grep -i csr | tail -10" 2>/dev/null || echo "ログ取得失敗"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         NEWLY_FAILED_NODES+=("${node}:${node_name}")
         continue
@@ -342,12 +342,12 @@ for node_info in "${NODES_WITHOUT_CERT[@]}"; do
     echo "[4/4] 証明書生成確認（10秒待機）..."
     sleep 10
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ 証明書生成成功${NC}"
         
         # 証明書の詳細
         echo "証明書情報:"
-        ssh jaist-lab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null || echo "詳細取得失敗"
+        ssh jaistlab@${node} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null || echo "詳細取得失敗"
         
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else
@@ -457,7 +457,7 @@ for node in $NODE_IPS; do
     NODE_NAME=$(kubectl get nodes -o wide 2>/dev/null | grep ${node} | awk '{print $1}')
     printf "%-20s " "${NODE_NAME} (${node}):"
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         # 既存か新規かを判定
         IS_EXISTING=false
         for existing_info in "${NODES_WITH_CERT[@]}"; do

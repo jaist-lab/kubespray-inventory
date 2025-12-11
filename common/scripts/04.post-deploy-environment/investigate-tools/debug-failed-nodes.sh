@@ -46,7 +46,7 @@ for node in $FAILED_NODES; do
     
     echo ""
     echo "--- kubeletログ（最新20行） ---"
-    ssh jaist-lab@${node} "sudo journalctl -u kubelet --since '2 minutes ago' | grep -i 'certificate\|csr' | tail -20" 2>/dev/null || echo "ログ取得失敗"
+    ssh jaistlab@${node} "sudo journalctl -u kubelet --since '2 minutes ago' | grep -i 'certificate\|csr' | tail -20" 2>/dev/null || echo "ログ取得失敗"
     
     echo ""
     echo "=========================================="

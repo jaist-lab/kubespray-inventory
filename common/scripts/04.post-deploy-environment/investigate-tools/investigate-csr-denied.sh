@@ -219,11 +219,11 @@ echo "サンプルノード: ${SAMPLE_NODE}"
 echo ""
 
 echo "--- serverTLSBootstrap設定 ---"
-ssh jaist-lab@${SAMPLE_NODE} "sudo cat /var/lib/kubelet/config.yaml | grep -E 'serverTLSBootstrap|rotateCertificates'" 2>/dev/null || echo "設定の取得に失敗"
+ssh jaistlab@${SAMPLE_NODE} "sudo cat /var/lib/kubelet/config.yaml | grep -E 'serverTLSBootstrap|rotateCertificates'" 2>/dev/null || echo "設定の取得に失敗"
 
 echo ""
 echo "--- kubeletログ（CSR関連） ---"
-ssh jaist-lab@${SAMPLE_NODE} "sudo journalctl -u kubelet --since '10 minutes ago' | grep -i 'csr\|certificate' | tail -20" 2>/dev/null || echo "ログの取得に失敗"
+ssh jaistlab@${SAMPLE_NODE} "sudo journalctl -u kubelet --since '10 minutes ago' | grep -i 'csr\|certificate' | tail -20" 2>/dev/null || echo "ログの取得に失敗"
 
 # ========================================
 # 調査7: ノードとCSRの対応関係
@@ -253,7 +253,7 @@ for node in $NODE_IPS; do
         echo "  Pending: ${NODE_PENDING}"
         
         # 証明書の存在確認
-        if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+        if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
             echo -e "  証明書: ${GREEN}あり${NC}"
         else
             echo -e "  証明書: ${RED}なし${NC}"
@@ -315,7 +315,7 @@ fi
 echo "kubeletログからエラーを検索中..."
 KUBELET_ERROR=0
 for node in $NODE_IPS; do
-    if ssh jaist-lab@${node} "sudo journalctl -u kubelet --since '5 minutes ago' | grep -i 'error.*csr\|error.*certificate'" 2>/dev/null | head -1; then
+    if ssh jaistlab@${node} "sudo journalctl -u kubelet --since '5 minutes ago' | grep -i 'error.*csr\|error.*certificate'" 2>/dev/null | head -1; then
         KUBELET_ERROR=1
     fi
 done

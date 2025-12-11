@@ -35,17 +35,17 @@ get_kubeconfig() {
     
     echo "[1/4] リモートホストでファイルをコピー中..."
     # リモートホストでファイルをコピーして権限変更
-    ssh jaist-lab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && \
-                                  sudo chown jaist-lab:jaist-lab ${TEMP_FILE} && \
+    ssh jaistlab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && \
+                                  sudo chown jaistlab:jaistlab ${TEMP_FILE} && \
                                   sudo chmod 644 ${TEMP_FILE}"
     
     echo "[2/4] ローカルにコピー中..."
     # ローカルにコピー
-    scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/${CONFIG_NAME}
+    scp jaistlab@${MASTER_IP}:${TEMP_FILE} ~/.kube/${CONFIG_NAME}
     
     echo "[3/4] リモート側の一時ファイル削除中..."
     # リモート側の一時ファイル削除
-    ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
+    ssh jaistlab@${MASTER_IP} "rm -f ${TEMP_FILE}"
     
     echo "[4/4] ローカルの権限設定中..."
     # Kubeconfig権限設定

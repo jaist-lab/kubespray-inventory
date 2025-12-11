@@ -2,8 +2,8 @@
 # Production環境 SSH公開鍵配布
 
 NODES="master01 master02 master03 node01 node02 dlcsv1 dlcsv2"
-USER="jaist-lab"
-PASSWORD="jaileon02"  # 初回接続用パスワード
+USER="jaistlab"
+PASSWORD='j4157Adm!n'  # 初回接続用パスワード
 
 echo "=========================================="
 echo "Production環境 SSH公開鍵配布"

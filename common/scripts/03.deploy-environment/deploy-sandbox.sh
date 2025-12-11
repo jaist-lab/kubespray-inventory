@@ -51,7 +51,7 @@ echo "デプロイには約40-60分かかります..."
 ansible-playbook -i "${INVENTORY_DIR}/hosts.yml" \
     --become \
     --become-user=root \
-    -e ansible_user=jaist-lab \
+    -e ansible_user=jaistlab \
     cluster.yml
 
 # Kubeconfig取得（修正版）
@@ -62,13 +62,13 @@ mkdir -p ~/.kube
 TEMP_FILE="/tmp/admin.conf.${MASTER_IP}"
 
 # リモートホストでファイルをコピーして権限変更
-ssh jaist-lab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && sudo chown jaist-lab:jaist-lab ${TEMP_FILE} && sudo chmod 644 ${TEMP_FILE}"
+ssh jaistlab@${MASTER_IP} "sudo cp /etc/kubernetes/admin.conf ${TEMP_FILE} && sudo chown jaistlab:jaistlab ${TEMP_FILE} && sudo chmod 644 ${TEMP_FILE}"
 
 # ローカルにコピー
-scp jaist-lab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-sandbox
+scp jaistlab@${MASTER_IP}:${TEMP_FILE} ~/.kube/config-sandbox
 
 # リモート側の一時ファイル削除
-ssh jaist-lab@${MASTER_IP} "rm -f ${TEMP_FILE}"
+ssh jaistlab@${MASTER_IP} "rm -f ${TEMP_FILE}"
 
 # Kubeconfig権限設定
 chmod 600 ~/.kube/config-sandbox

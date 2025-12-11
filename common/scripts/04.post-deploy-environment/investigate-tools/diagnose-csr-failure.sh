@@ -73,15 +73,15 @@ echo "=========================================="
 echo ""
 
 echo "--- /var/lib/kubelet/config.yaml ---"
-ssh jaist-lab@${TARGET_NODE_IP} "sudo cat /var/lib/kubelet/config.yaml" 2>/dev/null
+ssh jaistlab@${TARGET_NODE_IP} "sudo cat /var/lib/kubelet/config.yaml" 2>/dev/null
 
 echo ""
 echo "--- 重要な設定項目 ---"
 echo -n "rotateCertificates: "
-ssh jaist-lab@${TARGET_NODE_IP} "sudo grep 'rotateCertificates:' /var/lib/kubelet/config.yaml" 2>/dev/null || echo "設定なし"
+ssh jaistlab@${TARGET_NODE_IP} "sudo grep 'rotateCertificates:' /var/lib/kubelet/config.yaml" 2>/dev/null || echo "設定なし"
 
 echo -n "serverTLSBootstrap: "
-ssh jaist-lab@${TARGET_NODE_IP} "sudo grep 'serverTLSBootstrap:' /var/lib/kubelet/config.yaml" 2>/dev/null || echo -e "${RED}設定なし（これが問題の可能性）${NC}"
+ssh jaistlab@${TARGET_NODE_IP} "sudo grep 'serverTLSBootstrap:' /var/lib/kubelet/config.yaml" 2>/dev/null || echo -e "${RED}設定なし（これが問題の可能性）${NC}"
 
 # ============================================
 # 診断2: kubelet起動オプション確認
@@ -93,11 +93,11 @@ echo "=========================================="
 echo ""
 
 echo "--- systemd unit file ---"
-ssh jaist-lab@${TARGET_NODE_IP} "sudo systemctl cat kubelet | grep -A 10 'ExecStart='" 2>/dev/null
+ssh jaistlab@${TARGET_NODE_IP} "sudo systemctl cat kubelet | grep -A 10 'ExecStart='" 2>/dev/null
 
 echo ""
 echo "--- 実行中のkubeletプロセス ---"
-ssh jaist-lab@${TARGET_NODE_IP} "ps aux | grep [k]ubelet" 2>/dev/null
+ssh jaistlab@${TARGET_NODE_IP} "ps aux | grep [k]ubelet" 2>/dev/null
 
 # ============================================
 # 診断3: kubelet証明書ディレクトリ確認
@@ -108,7 +108,7 @@ echo "[3/8] 証明書ディレクトリ確認"
 echo "=========================================="
 echo ""
 
-ssh jaist-lab@${TARGET_NODE_IP} "sudo ls -la /var/lib/kubelet/pki/" 2>/dev/null || echo "ディレクトリなし"
+ssh jaistlab@${TARGET_NODE_IP} "sudo ls -la /var/lib/kubelet/pki/" 2>/dev/null || echo "ディレクトリなし"
 
 # ============================================
 # 診断4: kubeletログ詳細
@@ -119,11 +119,11 @@ echo "[4/8] kubeletログ詳細（最新50行）"
 echo "=========================================="
 echo ""
 
-ssh jaist-lab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '5 minutes ago' -n 50 --no-pager" 2>/dev/null
+ssh jaistlab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '5 minutes ago' -n 50 --no-pager" 2>/dev/null
 
 echo ""
 echo "--- CSR関連ログ ---"
-ssh jaist-lab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '5 minutes ago' | grep -i 'csr\|certificate\|tls'" 2>/dev/null | tail -20
+ssh jaistlab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '5 minutes ago' | grep -i 'csr\|certificate\|tls'" 2>/dev/null | tail -20
 
 # ============================================
 # 診断5: API Server接続確認
@@ -135,11 +135,11 @@ echo "=========================================="
 echo ""
 
 echo "--- kubeconfigファイル ---"
-ssh jaist-lab@${TARGET_NODE_IP} "sudo cat /etc/kubernetes/kubelet.conf | grep -E 'server:|certificate-authority'" 2>/dev/null
+ssh jaistlab@${TARGET_NODE_IP} "sudo cat /etc/kubernetes/kubelet.conf | grep -E 'server:|certificate-authority'" 2>/dev/null
 
 echo ""
 echo "--- API Server疎通確認 ---"
-ssh jaist-lab@${TARGET_NODE_IP} "sudo curl -k https://172.16.100.123:6443/healthz" 2>/dev/null || echo "接続失敗"
+ssh jaistlab@${TARGET_NODE_IP} "sudo curl -k https://172.16.100.123:6443/healthz" 2>/dev/null || echo "接続失敗"
 
 # ============================================
 # 診断6: 既存CSR確認
@@ -171,10 +171,10 @@ read -p "kubeletを再起動してCSR生成をテストしますか？ (yes/no):
 if [ "$TEST_RESTART" == "yes" ]; then
     echo ""
     echo "既存証明書を削除中..."
-    ssh jaist-lab@${TARGET_NODE_IP} "sudo rm -f /var/lib/kubelet/pki/kubelet-server-*.pem" 2>/dev/null || true
+    ssh jaistlab@${TARGET_NODE_IP} "sudo rm -f /var/lib/kubelet/pki/kubelet-server-*.pem" 2>/dev/null || true
     
     echo "kubelet再起動中..."
-    ssh jaist-lab@${TARGET_NODE_IP} "sudo systemctl restart kubelet"
+    ssh jaistlab@${TARGET_NODE_IP} "sudo systemctl restart kubelet"
     
     echo ""
     echo "CSR生成待機（45秒）..."
@@ -198,7 +198,7 @@ if [ "$TEST_RESTART" == "yes" ]; then
     
     echo ""
     echo "--- kubeletログ（再起動後） ---"
-    ssh jaist-lab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '1 minute ago' | grep -i 'csr\|certificate\|bootstrap'" 2>/dev/null | tail -30
+    ssh jaistlab@${TARGET_NODE_IP} "sudo journalctl -u kubelet --since '1 minute ago' | grep -i 'csr\|certificate\|bootstrap'" 2>/dev/null | tail -30
 fi
 
 # ============================================
@@ -211,7 +211,7 @@ echo "=========================================="
 echo ""
 
 # serverTLSBootstrap設定確認
-HAS_SERVER_TLS_BOOTSTRAP=$(ssh jaist-lab@${TARGET_NODE_IP} "sudo grep -c 'serverTLSBootstrap: true' /var/lib/kubelet/config.yaml" 2>/dev/null || echo "0")
+HAS_SERVER_TLS_BOOTSTRAP=$(ssh jaistlab@${TARGET_NODE_IP} "sudo grep -c 'serverTLSBootstrap: true' /var/lib/kubelet/config.yaml" 2>/dev/null || echo "0")
 
 if [ "$HAS_SERVER_TLS_BOOTSTRAP" -eq 0 ]; then
     echo -e "${RED}[問題] serverTLSBootstrap が設定されていません${NC}"
@@ -223,8 +223,8 @@ if [ "$HAS_SERVER_TLS_BOOTSTRAP" -eq 0 ]; then
     echo "  2. kubelet再起動"
     echo ""
     echo "実行コマンド:"
-    echo "  ssh jaist-lab@${TARGET_NODE_IP} \"sudo sed -i '/rotateCertificates:/a serverTLSBootstrap: true' /var/lib/kubelet/config.yaml\""
-    echo "  ssh jaist-lab@${TARGET_NODE_IP} \"sudo systemctl restart kubelet\""
+    echo "  ssh jaistlab@${TARGET_NODE_IP} \"sudo sed -i '/rotateCertificates:/a serverTLSBootstrap: true' /var/lib/kubelet/config.yaml\""
+    echo "  ssh jaistlab@${TARGET_NODE_IP} \"sudo systemctl restart kubelet\""
     echo ""
 else
     echo -e "${GREEN}[正常] serverTLSBootstrap: true が設定されています${NC}"

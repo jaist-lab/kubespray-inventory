@@ -108,7 +108,7 @@ echo "=========================================="
 for node in $NODE_IPS; do
     echo ""
     echo "=== Restarting kubelet on $node ==="
-    ssh jaist-lab@$node "sudo systemctl restart kubelet" && \
+    ssh jaistlab@$node "sudo systemctl restart kubelet" && \
         echo -e "${GREEN}✓ $node - 成功${NC}" || \
         echo -e "${RED}✗ $node - 失敗${NC}"
     sleep 2
@@ -183,7 +183,7 @@ CERT_SUCCESS=0
 CERT_TOTAL=0
 for node in $NODE_IPS; do
     CERT_TOTAL=$((CERT_TOTAL + 1))
-    if ssh jaist-lab@$node "sudo ls /var/lib/kubelet/pki/kubelet-server-current.pem" &>/dev/null; then
+    if ssh jaistlab@$node "sudo ls /var/lib/kubelet/pki/kubelet-server-current.pem" &>/dev/null; then
         echo -e "${GREEN}✓ $node - 証明書あり${NC}"
         CERT_SUCCESS=$((CERT_SUCCESS + 1))
     else

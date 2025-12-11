@@ -65,22 +65,22 @@ for i in "${!MASTER_IPS[@]}"; do
     
     # etcdサービス状態確認
     echo "etcd状態確認"
-    ssh jaist-lab@${IP} 'sudo systemctl status etcd' | grep -A 10 "Loaded:"
+    ssh jaistlab@${IP} 'sudo systemctl status etcd' | grep -A 10 "Loaded:"
     
     # etcdディスク使用状況
     echo ""
     echo "etcdディスク使用状況"
-    ssh jaist-lab@${IP} "df -h /var/lib/etcd"
+    ssh jaistlab@${IP} "df -h /var/lib/etcd"
     
     # etcdデータベースサイズ
     echo ""
     echo "etcdデータベースサイズ"
-    ssh jaist-lab@${IP} "sudo du -sh /var/lib/etcd/member"
+    ssh jaistlab@${IP} "sudo du -sh /var/lib/etcd/member"
     
     # etcdctlの存在確認
     echo ""
     echo "etcdctlコマンド確認"
-    ETCDCTL_PATH=$(ssh jaist-lab@${IP} "which etcdctl 2>/dev/null || echo 'not_found'")
+    ETCDCTL_PATH=$(ssh jaistlab@${IP} "which etcdctl 2>/dev/null || echo 'not_found'")
     
     if [ "$ETCDCTL_PATH" != "not_found" ]; then
         echo "✓ etcdctlインストール済み: $ETCDCTL_PATH"
@@ -88,7 +88,7 @@ for i in "${!MASTER_IPS[@]}"; do
         # etcdヘルスチェック
         echo ""
         echo "etcdヘルスチェック"
-        ssh jaist-lab@${IP} "
+        ssh jaistlab@${IP} "
             sudo /usr/local/bin/etcdctl \
               --endpoints=https://127.0.0.1:2379 \
               --cacert=/etc/ssl/etcd/ssl/ca.pem \
@@ -100,7 +100,7 @@ for i in "${!MASTER_IPS[@]}"; do
         # etcdメンバー一覧
         echo ""
         echo "etcdメンバー一覧"
-        ssh jaist-lab@${IP} "
+        ssh jaistlab@${IP} "
             sudo /usr/local/bin/etcdctl \
               --endpoints=https://127.0.0.1:2379 \
               --cacert=/etc/ssl/etcd/ssl/ca.pem \

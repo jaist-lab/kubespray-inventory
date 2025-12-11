@@ -26,13 +26,13 @@ SCRIPT_DIR=$(cd $(dirname $0); pwd)
 # Kubeconfig の設定
 case $CLUSTER in
     production)
-        export KUBECONFIG=/home/jaist-lab/.kube/config-production
+        export KUBECONFIG=/home/jaistlab/.kube/config-production
         ;;
     development)
-        export KUBECONFIG=/home/jaist-lab/.kube/config-development
+        export KUBECONFIG=/home/jaistlab/.kube/config-development
         ;;
     sandbox)
-        export KUBECONFIG=/home/jaist-lab/.kube/config-sandbox
+        export KUBECONFIG=/home/jaistlab/.kube/config-sandbox
         ;;
     *)
         echo "エラー: 不正なクラスター名: $CLUSTER"

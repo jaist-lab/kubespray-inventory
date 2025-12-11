@@ -139,7 +139,7 @@ unsafe_show_logs: false
 
 allow_unsupported_distribution_setup: false
 ## Ansible設定
-ansible_user: jaist-lab
+ansible_user: jaistlab
 ansible_become: true
 ansible_ssh_pipelining: true
 ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

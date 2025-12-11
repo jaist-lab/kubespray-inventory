@@ -22,7 +22,7 @@ echo "Step 2: 証明書とKubernetes設定を削除"
 echo "=========================================="
 for host in sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 sandbox-node02 ; do
     echo "Cleaning $host..."
-    ssh jaist-lab@$host "sudo rm -rf /etc/kubernetes/ /etc/ssl/etcd/ /var/lib/etcd/ /var/lib/kubelet/ /etc/cni/"
+    ssh jaistlab@$host "sudo rm -rf /etc/kubernetes/ /etc/ssl/etcd/ /var/lib/etcd/ /var/lib/kubelet/ /etc/cni/"
 done
 
 
@@ -43,7 +43,7 @@ echo "=========================================="
 echo "Step 4: SSH接続確認"
 echo "=========================================="
 for host in sandbox-master01 sandbox-master02 sandbox-master03 sandbox-node01 sandbox-node02 ; do
-    if ssh -o ConnectTimeout=5 jaist-lab@$host "hostname" &>/dev/null; then
+    if ssh -o ConnectTimeout=5 jaistlab@$host "hostname" &>/dev/null; then
         echo "✓ $host: OK"
     else
         echo "✗ $host: FAILED"

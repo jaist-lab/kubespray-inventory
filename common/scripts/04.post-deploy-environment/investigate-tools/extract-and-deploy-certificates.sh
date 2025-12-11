@@ -66,13 +66,13 @@ for node_ip in "${!NODE_MAP[@]}"; do
     # ステップ3: リモートノードにコピー
     echo ""
     echo "[3/5] リモートノードにコピー..."
-    scp ${CERT_FILE} jaist-lab@${node_ip}:/tmp/
+    scp ${CERT_FILE} jaistlab@${node_ip}:/tmp/
     
     # ステップ4: リモートノードで証明書を配置
     echo ""
     echo "[4/5] 証明書配置..."
     
-    ssh jaist-lab@${node_ip} << EOF
+    ssh jaistlab@${node_ip} << EOF
         # rootに切り替えて作業
         sudo bash -c '
         # kubelet停止
@@ -109,12 +109,12 @@ EOF
     echo "[5/5] 証明書確認（10秒待機）..."
     sleep 10
     
-    if ssh jaist-lab@${node_ip} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node_ip} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ ${node_name} - 証明書配置確認成功${NC}"
         
         # 証明書の詳細
         echo "配置された証明書:"
-        ssh jaist-lab@${node_ip} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null
+        ssh jaistlab@${node_ip} "sudo openssl x509 -in /var/lib/kubelet/pki/kubelet-server-current.pem -noout -subject -dates" 2>/dev/null
     else
         echo -e "${RED}✗ ${node_name} - 証明書が見つかりません${NC}"
     fi
@@ -140,7 +140,7 @@ for node in $ALL_NODES; do
     
     printf "%-20s " "${NODE_NAME}:"
     
-    if ssh jaist-lab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
+    if ssh jaistlab@${node} "sudo test -f /var/lib/kubelet/pki/kubelet-server-current.pem" 2>/dev/null; then
         echo -e "${GREEN}✓ 証明書あり${NC}"
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     else

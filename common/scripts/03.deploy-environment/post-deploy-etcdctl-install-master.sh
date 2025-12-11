@@ -86,13 +86,13 @@ for i in "${!MASTER_IPS[@]}"; do
     echo ">>> ${NAME} (${IP}) にインストール中..."
     
     # スクリプトをコピー
-    scp /tmp/install-etcdctl.sh jaist-lab@${IP}:/tmp/
+    scp /tmp/install-etcdctl.sh jaistlab@${IP}:/tmp/
     
     # 実行
-    ssh jaist-lab@${IP} "bash /tmp/install-etcdctl.sh"
+    ssh jaistlab@${IP} "bash /tmp/install-etcdctl.sh"
     
     # クリーンアップ
-    ssh jaist-lab@${IP} "rm -f /tmp/install-etcdctl.sh"
+    ssh jaistlab@${IP} "rm -f /tmp/install-etcdctl.sh"
     
     echo "✓ ${NAME} インストール完了"
 done
