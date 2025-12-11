@@ -44,6 +44,7 @@ OPTIONS:
     -p, --pool POOL         Cephプール名 (デフォルト: kubernetes)
     -n, --namespace NS      Prometheusネームスペース (デフォルト: monitoring)
     --skip-ceph             Ceph CSI Driverのデプロイをスキップ
+    --recreate-sc           既存のStorageClassを削除して再作成
     --dry-run               実際のデプロイを行わず、設定のみ表示
     -h, --help              このヘルプを表示
 
@@ -63,6 +64,7 @@ CEPH_POOL="kubernetes"
 CEPH_USER="kubernetes"
 NAMESPACE="monitoring"
 SKIP_CEPH=false
+RECREATE_SC=false
 DRY_RUN=false
 CONFIG_DIR="${HOME}/kubernetes/monitoring-configs"
 
@@ -98,6 +100,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-ceph)
             SKIP_CEPH=true
+            shift
+            ;;
+        --recreate-sc)
+            RECREATE_SC=true
             shift
             ;;
         --dry-run)
@@ -172,6 +178,7 @@ log_info "Prometheus保持期間: $PROMETHEUS_RETENTION"
 log_info "Prometheusストレージ: $PROMETHEUS_STORAGE_SIZE"
 log_info "Grafanaストレージ: $GRAFANA_STORAGE_SIZE"
 log_info "Ceph CSIスキップ: $SKIP_CEPH"
+log_info "StorageClass再作成: $RECREATE_SC"
 log_info "ドライラン: $DRY_RUN"
 log_info "=========================================="
 
@@ -197,6 +204,33 @@ mkdir -p "$CONFIG_DIR"
 if [[ "$SKIP_CEPH" == false ]]; then
     log_info "Ceph CSI Driverをデプロイします..."
     
+    # 既存StorageClassのチェック
+    log_info "既存のStorageClass '${STORAGE_CLASS_NAME}' を確認中..."
+    if kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null; then
+        log_warn "StorageClass '${STORAGE_CLASS_NAME}' が既に存在します"
+        
+        if [[ "$RECREATE_SC" == true ]]; then
+            # PVC使用状況確認
+            PVC_COUNT=$(kubectl get pvc --all-namespaces -o json | jq -r ".items[] | select(.spec.storageClassName == \"${STORAGE_CLASS_NAME}\") | .metadata.name" | wc -l)
+            
+            if [[ $PVC_COUNT -gt 0 ]]; then
+                log_error "StorageClass '${STORAGE_CLASS_NAME}' を使用しているPVCが ${PVC_COUNT} 個存在します"
+                log_error "使用中のPVC:"
+                kubectl get pvc --all-namespaces -o json | jq -r ".items[] | select(.spec.storageClassName == \"${STORAGE_CLASS_NAME}\") | \"\(.metadata.namespace)/\(.metadata.name)\""
+                log_error ""
+                log_error "StorageClassを削除するには、まずPVCを削除してください"
+                exit 1
+            fi
+            
+            log_warn "StorageClassを削除して再作成します..."
+            kubectl delete storageclass "$STORAGE_CLASS_NAME"
+            log_success "StorageClass削除完了"
+        else
+            log_info "既存のStorageClassを使用します（再作成する場合は --recreate-sc オプションを使用）"
+            log_info "Ceph CSI Driverの設定のみ更新します..."
+        fi
+    fi
+    
     # Secretの作成
     log_info "Ceph認証情報Secretを作成中..."
     kubectl create secret generic csi-rbd-secret \
@@ -220,6 +254,12 @@ if [[ "$SKIP_CEPH" == false ]]; then
         MONITOR_YAML="${MONITOR_YAML}      - \"${monitor}\"\n"
     done
     
+    # StorageClass作成設定
+    SC_CREATE="true"
+    if kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null && [[ "$RECREATE_SC" == false ]]; then
+        SC_CREATE="false"
+    fi
+    
     # Ceph CSI values.yaml作成
     log_info "Ceph CSI設定ファイルを生成中..."
     cat > "${CONFIG_DIR}/ceph-csi-rbd-values-${ENVIRONMENT}.yaml" << EOF
@@ -229,7 +269,7 @@ csiConfig:
 $(echo -e "$MONITOR_YAML")
 
 storageClass:
-  create: true
+  create: ${SC_CREATE}
   name: ${STORAGE_CLASS_NAME}
   clusterID: "${CEPH_CLUSTER_ID}"
   pool: ${CEPH_POOL}
@@ -265,6 +305,7 @@ nodeplugin:
 EOF
     
     log_success "設定ファイル生成完了: ${CONFIG_DIR}/ceph-csi-rbd-values-${ENVIRONMENT}.yaml"
+    log_info "StorageClass作成設定: ${SC_CREATE}"
     
     # Ceph CSI Driverデプロイ
     log_info "Ceph CSI Driverをデプロイ中..."

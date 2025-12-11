@@ -107,6 +107,12 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             usage
             ;;
+
+        --recreate-sc)
+            RECREATE_SC=true
+            shift
+            ;;
+
         *)
             log_error "不明なオプション: $1"
             usage
@@ -292,6 +298,11 @@ fi
 
 if [[ "$DRY_RUN" == true ]]; then
     DEPLOY_ARGS+=("--dry-run")
+fi
+
+# DEPLOY_ARGS に追加:
+if [[ "$RECREATE_SC" == true ]]; then
+    DEPLOY_ARGS+=("--recreate-sc")
 fi
 
 log_info "実行コマンド: $DEPLOY_SCRIPT ${DEPLOY_ARGS[*]}"
