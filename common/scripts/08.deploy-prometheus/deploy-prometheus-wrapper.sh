@@ -66,7 +66,7 @@ EOF
 ENVIRONMENT=""
 SKIP_CEPH=false
 DRY_RUN=false
-DEPLOY_SCRIPT="${HOME}/kubernetes/deploy-prometheus.sh"
+DEPLOY_SCRIPT="./deploy-prometheus.sh"
 CEPH_CONFIG="/etc/ceph/ceph.conf"
 CEPH_KEYRING_PATH="/etc/ceph/ceph.client.kubernetes.keyring"
 
