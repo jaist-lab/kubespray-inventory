@@ -48,7 +48,8 @@ OPTIONS:
 Ceph情報はr760xs1からSSH経由で自動取得されます:
     - CephクラスタID: ssh r760xs1 'ceph fsid'
     - Cephモニター: ssh r760xs1 'ceph mon dump'
-    - Ceph認証キー: ssh r760xs1 'ceph auth get-key client.kubernetes'
+    - Ceph認証キー: ssh r760xs1 'ceph auth get-or-create client.kubernetes ...'
+      (client.kubernetesユーザーが存在しない場合は自動作成)
 
 SSH接続設定:
     ~/.ssh/config に以下の設定を推奨:
@@ -74,6 +75,7 @@ CEPH_PORT="22"
 SKIP_CEPH=false
 DRY_RUN=false
 DEPLOY_SCRIPT="./deploy-prometheus.sh"
+CEPH_POOL="kubernetes"
 
 # 引数解析
 while [[ $# -gt 0 ]]; do
@@ -197,29 +199,56 @@ if [[ "$SKIP_CEPH" == false ]]; then
         log_success "モニターアドレス取得成功: $CEPH_MONITORS"
     fi
     
-    # 3. Ceph認証キーを取得
-    log_info "Ceph認証キーを取得中..."
-    CEPH_KEY=$(ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "ceph auth get-key client.kubernetes 2>/dev/null" | tr -d '[:space:]')
-    
-    if [[ -z "$CEPH_KEY" ]]; then
-        log_warn "ceph auth get-keyで認証キーを取得できませんでした"
-        log_info "keyringファイルから取得を試みます..."
+    # 3. Cephプール存在確認と作成
+    log_info "Cephプール '${CEPH_POOL}' の存在確認中..."
+    if ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "ceph osd pool ls 2>/dev/null | grep -q '^${CEPH_POOL}$'"; then
+        log_success "Cephプール '${CEPH_POOL}' が存在します"
+    else
+        log_warn "Cephプール '${CEPH_POOL}' が存在しません"
+        log_info "プールを作成します..."
         
-        CEPH_KEY=$(ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "grep -oP 'key\s*=\s*\K.*' /etc/ceph/ceph.client.kubernetes.keyring 2>/dev/null" | tr -d '[:space:]')
-        
-        if [[ -z "$CEPH_KEY" ]]; then
-            log_error "Ceph認証キーを取得できませんでした"
-            log_error "リモートホストで以下を確認してください:"
-            log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph auth get-key client.kubernetes'"
-            log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'cat /etc/ceph/ceph.client.kubernetes.keyring'"
-            log_error ""
-            log_error "client.kubernetesユーザーが存在しない場合は、以下で作成してください:"
-            log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph auth get-or-create client.kubernetes mon \"allow r\" osd \"allow class-read object_prefix rbd_children, allow rwx pool=kubernetes\"'"
+        # プール作成
+        if ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "ceph osd pool create ${CEPH_POOL} 128 128 2>/dev/null"; then
+            log_success "Cephプール '${CEPH_POOL}' を作成しました"
+            
+            # RBDアプリケーション有効化
+            if ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "ceph osd pool application enable ${CEPH_POOL} rbd 2>/dev/null"; then
+                log_success "プール '${CEPH_POOL}' にRBDアプリケーションを有効化しました"
+            else
+                log_warn "RBDアプリケーションの有効化に失敗しました（既に有効の可能性あり）"
+            fi
+        else
+            log_error "Cephプール '${CEPH_POOL}' の作成に失敗しました"
+            log_error "手動で作成してください:"
+            log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph osd pool create ${CEPH_POOL} 128 128'"
+            log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph osd pool application enable ${CEPH_POOL} rbd'"
             exit 1
         fi
-        log_success "keyringファイルから認証キー取得成功"
-    else
-        log_success "ceph auth get-keyから認証キー取得成功"
+    fi
+    
+    # 4. Ceph認証キーを取得（get-or-createで自動作成）
+    log_info "Ceph認証情報を取得/作成中 (client.kubernetes)..."
+    
+    CEPH_AUTH_OUTPUT=$(ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" \
+        "ceph auth get-or-create client.kubernetes \
+        mon 'allow r' \
+        osd 'allow class-read object_prefix rbd_children, allow rwx pool=${CEPH_POOL}' 2>/dev/null")
+    
+    if [[ -z "$CEPH_AUTH_OUTPUT" ]]; then
+        log_error "Ceph認証情報の取得/作成に失敗しました"
+        log_error "リモートホストで以下を確認してください:"
+        log_error "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph auth get-or-create client.kubernetes mon \"allow r\" osd \"allow class-read object_prefix rbd_children, allow rwx pool=${CEPH_POOL}\"'"
+        exit 1
+    fi
+    
+    # 認証キーの抽出
+    CEPH_KEY=$(echo "$CEPH_AUTH_OUTPUT" | grep -oP 'key\s*=\s*\K[A-Za-z0-9+/=]+' | head -n1 | tr -d '[:space:]')
+    
+    if [[ -z "$CEPH_KEY" ]]; then
+        log_error "認証キーの抽出に失敗しました"
+        log_error "ceph auth get-or-create の出力:"
+        log_error "$CEPH_AUTH_OUTPUT"
+        exit 1
     fi
     
     # 認証キーの妥当性チェック（Base64形式か）
@@ -228,17 +257,7 @@ if [[ "$SKIP_CEPH" == false ]]; then
         exit 1
     fi
     
-    # 4. Cephプール存在確認
-    log_info "Cephプール 'kubernetes' の存在確認中..."
-    if ssh -p "$CEPH_PORT" "${CEPH_USER}@${CEPH_HOST}" "ceph osd pool ls 2>/dev/null | grep -q '^kubernetes$'"; then
-        log_success "Cephプール 'kubernetes' が存在します"
-    else
-        log_warn "Cephプール 'kubernetes' が存在しません"
-        log_info "プールを作成することを推奨します:"
-        log_info "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph osd pool create kubernetes 128 128'"
-        log_info "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph osd pool application enable kubernetes rbd'"
-        log_warn "デプロイは続行しますが、PVC作成時にエラーが発生する可能性があります"
-    fi
+    log_success "Ceph認証情報取得/作成完了 (client.kubernetes)"
     
     # Ceph情報サマリー
     log_info ""
@@ -248,6 +267,8 @@ if [[ "$SKIP_CEPH" == false ]]; then
     log_info "取得元ホスト: ${CEPH_USER}@${CEPH_HOST}:${CEPH_PORT}"
     log_info "クラスタID: $CEPH_CLUSTER_ID"
     log_info "モニター: $CEPH_MONITORS"
+    log_info "プール: $CEPH_POOL"
+    log_info "ユーザー: client.kubernetes"
     log_info "認証キー: ${CEPH_KEY:0:10}... (最初の10文字のみ表示)"
     log_info "=========================================="
     log_info ""
@@ -264,6 +285,7 @@ if [[ "$SKIP_CEPH" == false ]]; then
     DEPLOY_ARGS+=("-c" "$CEPH_KEY")
     DEPLOY_ARGS+=("-i" "$CEPH_CLUSTER_ID")
     DEPLOY_ARGS+=("-m" "$CEPH_MONITORS")
+    DEPLOY_ARGS+=("-p" "$CEPH_POOL")
 else
     DEPLOY_ARGS+=("--skip-ceph")
 fi
@@ -285,6 +307,13 @@ if [[ $EXIT_CODE -eq 0 ]]; then
     log_success "=========================================="
     log_success "全デプロイメント完了!"
     log_success "=========================================="
+    log_info ""
+    log_info "Ceph認証情報が保存されました:"
+    log_info "  ユーザー: client.kubernetes"
+    log_info "  権限: mon 'allow r', osd 'allow class-read object_prefix rbd_children, allow rwx pool=${CEPH_POOL}'"
+    log_info ""
+    log_info "認証情報を確認するには:"
+    log_info "  ssh ${CEPH_USER}@${CEPH_HOST} 'ceph auth get client.kubernetes'"
 else
     log_error ""
     log_error "=========================================="
@@ -293,34 +322,3 @@ else
 fi
 
 exit $EXIT_CODE
-```
-
-## 主な変更点と機能
-
-1. **SSH経由でのCeph情報取得**:
-   - `ssh r760xs1 'ceph fsid'` でクラスタID取得
-   - `ssh r760xs1 'ceph mon dump'` でモニターアドレス取得
-   - `ssh r760xs1 'ceph auth get-key client.kubernetes'` で認証キー取得
-
-2. **SSH接続確認**:
-   - デプロイ前にSSH接続をテスト
-   - 接続失敗時に詳細なエラーメッセージと対処方法を表示
-
-3. **フォールバック機能**:
-   - `ceph mon dump` 失敗時は `/etc/ceph/ceph.conf` から取得
-   - `ceph auth get-key` 失敗時は keyring ファイルから取得
-
-4. **追加の検証**:
-   - 認証キーのBase64形式チェック
-   - Cephプール `kubernetes` の存在確認
-
-## 使用準備
-
-1. **SSH設定** (`~/.ssh/config`):
-```
-Host r760xs1
-    HostName 172.16.200.11
-    User root
-    IdentityFile ~/.ssh/id_rsa
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
