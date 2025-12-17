@@ -1,14 +1,13 @@
 #!/bin/bash
 
 #==============================================================================
-# Prometheus Stack Deployment Script for Kubernetes
+# Prometheus Stack Deployment Script for Kubernetes (Fixed Version)
 # 対応環境: production, development, sandbox
+# 修正内容:
+#   - StorageClass作成ロジックの一本化（Helmではなく手動作成に統一）
+#   - 作成順序の明確化
+#   - エラーハンドリングの強化
 #==============================================================================
-
-
-# deploy-prometheus.sh
-# Prometheus Stack (Prometheus, Grafana, Alertmanager) を Kubernetes にデプロイするスクリプト
-# Ceph ストレージとの統合を含む
 
 set -e
 
@@ -63,13 +62,17 @@ show_help() {
     -p, --pool <name>           Cephプール名 (デフォルト: kubernetes)
     -n, --namespace <ns>        Prometheusのネームスペース (デフォルト: monitoring)
     --skip-ceph                 Ceph CSI Driverのデプロイをスキップ
-    --recreate-sc              既存のStorageClassを再作成
+    --recreate-sc              既存のStorageClassを削除して再作成
     --dry-run                   実行せずに設定のみ表示
     -h, --help                  このヘルプを表示
 
 例:
     $(basename "$0") -e production -c "AQBRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx=="
     $(basename "$0") -e development -c "AQBRxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx==" -m "10.0.0.1:6789,10.0.0.2:6789"
+
+修正内容:
+    - StorageClass作成はHelm chartではなく手動作成に統一
+    - 作成順序: Secret → CSI Driver → StorageClass → Namespace → Prometheus Stack
 EOF
 }
 
@@ -188,6 +191,7 @@ if [[ "$DRY_RUN" == true ]]; then
         echo "Ceph CSI Driver: デプロイする"
         echo "CephクラスタID: ${CEPH_CLUSTER_ID:-自動取得}"
         echo "Cephモニター: ${CEPH_MONITORS:-自動取得}"
+        echo "StorageClass作成: Helm chartではなく手動作成"
     else
         echo "Ceph CSI Driver: スキップ"
     fi
@@ -207,18 +211,26 @@ log_success "Kubernetesクラスタに接続しました"
 # 設定ファイルディレクトリ作成
 mkdir -p "$CONFIG_DIR"
 
-# Ceph CSI Driver デプロイ
+#==============================================================================
+# Phase 1: Ceph CSI Driver デプロイ
+#==============================================================================
 if [[ "$SKIP_CEPH" == false ]]; then
-    log_info "Ceph CSI Driverをデプロイしています..."
+    log_info "=========================================="
+    log_info "Phase 1: Ceph CSI Driverのデプロイ"
+    log_info "=========================================="
     
     # Helm リポジトリ追加
+    log_info "Helmリポジトリを追加しています..."
     helm repo add ceph-csi https://ceph.github.io/csi-charts
     helm repo update
+    log_success "Helmリポジトリの追加完了"
     
-    # Secret作成（Ceph認証情報）
-    log_info "Ceph認証情報のSecretを作成しています..."
+    #--------------------------------------------------------------------------
+    # Step 1: Secret作成（Ceph認証情報）
+    #--------------------------------------------------------------------------
+    log_info "Step 1: Ceph認証情報のSecretを作成しています..."
     
-    # Base64エンコード確認
+    # Base64エンコード
     CEPH_USER_BASE64=$(echo -n "kubernetes" | base64)
     
     kubectl apply -f - << EOF
@@ -233,65 +245,49 @@ data:
   userKey: ${CEPH_KEY}
 EOF
     
-    # モニターリスト変換（カンマ区切りからYAML配列形式へ）
-    if [[ -n "$CEPH_MONITORS" ]]; then
-        IFS=',' read -ra MONITOR_ARRAY <<< "$CEPH_MONITORS"
-        MONITOR_YAML=""
-        for monitor in "${MONITOR_ARRAY[@]}"; do
-            MONITOR_YAML="${MONITOR_YAML}      - \"${monitor}\"\n"
-        done
-    else
+    log_success "Secret 'csi-rbd-secret' を作成しました (namespace: kube-system)"
+    
+    #--------------------------------------------------------------------------
+    # Step 2: モニターリスト変換
+    #--------------------------------------------------------------------------
+    log_info "Step 2: Cephモニターリストを変換しています..."
+    
+    if [[ -z "$CEPH_MONITORS" ]]; then
         log_error "Cephモニターアドレスが指定されていません"
         exit 1
     fi
     
-    # StorageClass存在チェック
-    SC_CREATE=true
-    if kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null; then
-        log_warn "StorageClass '${STORAGE_CLASS_NAME}' が既に存在します"
-        
-        if [[ "$RECREATE_SC" == true ]]; then
-            log_info "StorageClassを再作成します..."
-            
-            # 使用中のPVCチェック
-            PVC_COUNT=$(kubectl get pvc --all-namespaces -o json | \
-                jq -r ".items[] | select(.spec.storageClassName == \"${STORAGE_CLASS_NAME}\") | .metadata.name" | wc -l)
-            
-            if [[ $PVC_COUNT -gt 0 ]]; then
-                log_error "StorageClassを使用しているPVCが ${PVC_COUNT} 個存在します"
-                log_error "再作成を中止します"
-                exit 1
-            fi
-            
-            kubectl delete storageclass "$STORAGE_CLASS_NAME"
-            SC_CREATE=true
-        else
-            log_info "既存のStorageClassを使用します"
-            SC_CREATE=false
-        fi
-    fi
+    # カンマ区切りからYAML配列形式へ変換
+    IFS=',' read -ra MONITOR_ARRAY <<< "$CEPH_MONITORS"
+    MONITOR_YAML=""
+    for monitor in "${MONITOR_ARRAY[@]}"; do
+        MONITOR_YAML="${MONITOR_YAML}      - \"${monitor}\"\n"
+    done
     
-    # Ceph CSI values.yaml 作成
+    log_success "モニターリストの変換完了"
+    
+    #--------------------------------------------------------------------------
+    # Step 3: Ceph CSI values.yaml 作成（StorageClass作成は無効）
+    #--------------------------------------------------------------------------
+    log_info "Step 3: Ceph CSI values.yamlを作成しています..."
+    
     cat > "${CONFIG_DIR}/ceph-csi-rbd-values-${ENVIRONMENT}.yaml" << EOF
+# Ceph CSI Driver設定
 csiConfig:
   - clusterID: "${CEPH_CLUSTER_ID}"
     monitors:
 $(echo -e "$MONITOR_YAML")
 
+# StorageClassはHelm chartでは作成しない（手動作成に統一）
 storageClass:
-  create: ${SC_CREATE}
-  name: ${STORAGE_CLASS_NAME}
-  clusterID: "${CEPH_CLUSTER_ID}"
-  pool: ${CEPH_POOL}
-  reclaimPolicy: Retain
-  allowVolumeExpansion: true
-  mountOptions:
-    - discard
+  create: false
 
+# 既存のSecretを使用
 secret:
   create: false
   name: csi-rbd-secret
 
+# Provisioner設定
 provisioner:
   name: provisioner
   replicaCount: 2
@@ -303,6 +299,7 @@ provisioner:
       memory: 512Mi
       cpu: 500m
 
+# Node Plugin設定
 nodeplugin:
   name: nodeplugin
   resources:
@@ -314,7 +311,13 @@ nodeplugin:
       cpu: 500m
 EOF
     
-    # Helm deploy
+    log_success "values.yamlを作成しました: ${CONFIG_DIR}/ceph-csi-rbd-values-${ENVIRONMENT}.yaml"
+    
+    #--------------------------------------------------------------------------
+    # Step 4: Helm install (CSI Driver本体)
+    #--------------------------------------------------------------------------
+    log_info "Step 4: Ceph CSI Driverをインストールしています..."
+    
     helm upgrade --install ceph-csi-rbd ceph-csi/ceph-csi-rbd \
         --namespace kube-system \
         --values "${CONFIG_DIR}/ceph-csi-rbd-values-${ENVIRONMENT}.yaml" \
@@ -322,9 +325,50 @@ EOF
         --wait \
         --timeout 10m
     
-    # StorageClass作成（Helm chartで作成されない場合）
-    if [[ "$SC_CREATE" == true ]]; then
-        log_info "StorageClass '${STORAGE_CLASS_NAME}' を作成しています..."
+    log_success "Ceph CSI Driverのインストール完了"
+    
+    #--------------------------------------------------------------------------
+    # Step 5: StorageClass作成（手動）
+    #--------------------------------------------------------------------------
+    log_info "Step 5: StorageClassを作成しています..."
+    
+    # StorageClass存在チェック
+    if kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null; then
+        if [[ "$RECREATE_SC" == true ]]; then
+            log_warn "StorageClass '${STORAGE_CLASS_NAME}' が既に存在します"
+            
+            # 使用中のPVCチェック
+            log_info "StorageClassを使用しているPVCを確認しています..."
+            PVC_LIST=$(kubectl get pvc --all-namespaces -o json | \
+                jq -r ".items[] | select(.spec.storageClassName == \"${STORAGE_CLASS_NAME}\") | \"\(.metadata.namespace)/\(.metadata.name)\"")
+            
+            if [[ -n "$PVC_LIST" ]]; then
+                PVC_COUNT=$(echo "$PVC_LIST" | wc -l)
+                log_error "StorageClassを使用しているPVCが ${PVC_COUNT} 個存在します:"
+                echo "$PVC_LIST"
+                log_error "再作成を中止します（PVCを先に削除してください）"
+                exit 1
+            fi
+            
+            log_info "StorageClassを削除します..."
+            kubectl delete storageclass "$STORAGE_CLASS_NAME"
+            log_success "StorageClassを削除しました"
+        else
+            log_warn "StorageClass '${STORAGE_CLASS_NAME}' が既に存在します"
+            log_info "既存のStorageClassを使用します（再作成する場合は --recreate-sc を指定）"
+            
+            # 既存StorageClassの設定確認
+            log_info "既存StorageClassの設定:"
+            kubectl get storageclass "$STORAGE_CLASS_NAME" -o yaml | grep -E "provisioner|clusterID|pool"
+            
+            # 次のステップへ進む
+            log_info "StorageClass作成をスキップします"
+        fi
+    fi
+    
+    # StorageClassが存在しない、または削除された場合は作成
+    if ! kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null; then
+        log_info "StorageClass '${STORAGE_CLASS_NAME}' を作成します..."
         
         cat << EOF | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
@@ -351,23 +395,52 @@ mountOptions:
   - discard
 EOF
         
-        log_info "StorageClass '${STORAGE_CLASS_NAME}' が作成されました"
+        log_success "StorageClass '${STORAGE_CLASS_NAME}' を作成しました"
     fi
     
-    log_success "Ceph CSI Driverのデプロイが完了しました"
+    # StorageClass作成確認
+    log_info "StorageClassの作成を確認しています..."
+    if kubectl get storageclass "$STORAGE_CLASS_NAME" &> /dev/null; then
+        log_success "StorageClass '${STORAGE_CLASS_NAME}' が正常に存在します"
+        kubectl get storageclass "$STORAGE_CLASS_NAME"
+    else
+        log_error "StorageClass '${STORAGE_CLASS_NAME}' の作成に失敗しました"
+        exit 1
+    fi
+    
+    log_success "Phase 1完了: Ceph CSI Driverのデプロイが完了しました"
 fi
 
-# Prometheus Stack デプロイ
-log_info "Prometheus Stackをデプロイしています..."
+#==============================================================================
+# Phase 2: Prometheus Stack デプロイ
+#==============================================================================
+log_info ""
+log_info "=========================================="
+log_info "Phase 2: Prometheus Stackのデプロイ"
+log_info "=========================================="
 
-# Namespace作成
+#------------------------------------------------------------------------------
+# Step 1: Namespace作成
+#------------------------------------------------------------------------------
+log_info "Step 1: Namespaceを作成しています..."
+
 kubectl create namespace "$PROMETHEUS_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+log_success "Namespace '${PROMETHEUS_NAMESPACE}' を作成しました"
 
-# Helm リポジトリ追加
+#------------------------------------------------------------------------------
+# Step 2: Helm リポジトリ追加
+#------------------------------------------------------------------------------
+log_info "Step 2: Helmリポジトリを追加しています..."
+
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
+log_success "Helmリポジトリの追加完了"
 
-# Prometheus Stack values.yaml 作成
+#------------------------------------------------------------------------------
+# Step 3: Prometheus Stack values.yaml 作成
+#------------------------------------------------------------------------------
+log_info "Step 3: Prometheus Stack values.yamlを作成しています..."
+
 cat > "${CONFIG_DIR}/prometheus-stack-values-${ENVIRONMENT}.yaml" << EOF
 # Prometheus設定
 prometheus:
@@ -465,7 +538,14 @@ commonLabels:
   environment: ${ENVIRONMENT}
 EOF
 
-# Helm deploy
+log_success "values.yamlを作成しました: ${CONFIG_DIR}/prometheus-stack-values-${ENVIRONMENT}.yaml"
+
+#------------------------------------------------------------------------------
+# Step 4: Helm install (Prometheus Stack)
+#------------------------------------------------------------------------------
+log_info "Step 4: Prometheus Stackをインストールしています..."
+log_info "このステップでPVCが自動作成され、PVが自動プロビジョニングされます"
+
 helm upgrade --install prometheus-stack prometheus-community/kube-prometheus-stack \
     --namespace "$PROMETHEUS_NAMESPACE" \
     --values "${CONFIG_DIR}/prometheus-stack-values-${ENVIRONMENT}.yaml" \
@@ -473,33 +553,61 @@ helm upgrade --install prometheus-stack prometheus-community/kube-prometheus-sta
     --wait \
     --timeout 15m
 
-log_success "Prometheus Stackのデプロイが完了しました"
+log_success "Prometheus Stackのインストール完了"
 
+log_success "Phase 2完了: Prometheus Stackのデプロイが完了しました"
+
+#==============================================================================
 # デプロイ確認
+#==============================================================================
 echo ""
-log_info "デプロイ状態を確認しています..."
+log_info "=========================================="
+log_info "デプロイ状態の確認"
+log_info "=========================================="
 echo ""
 
-echo "=== Pod状態 ==="
+echo "=== StorageClass ==="
+kubectl get storageclass "$STORAGE_CLASS_NAME" 2>/dev/null || log_warn "StorageClassが見つかりません"
+echo ""
+
+echo "=== Pod状態 (namespace: ${PROMETHEUS_NAMESPACE}) ==="
 kubectl get pods -n "$PROMETHEUS_NAMESPACE"
 echo ""
 
-echo "=== Service一覧 ==="
+echo "=== Service一覧 (namespace: ${PROMETHEUS_NAMESPACE}) ==="
 kubectl get svc -n "$PROMETHEUS_NAMESPACE"
 echo ""
 
-echo "=== PVC一覧 ==="
+echo "=== PVC一覧 (namespace: ${PROMETHEUS_NAMESPACE}) ==="
 kubectl get pvc -n "$PROMETHEUS_NAMESPACE"
 echo ""
 
-echo "=== アクセス方法 ==="
-echo "Prometheus: kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-kube-prom-prometheus 9090:9090"
-echo "Grafana: kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-grafana 3000:80"
-echo "Alertmanager: kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-kube-prom-alertmanager 9093:9093"
+echo "=== PV一覧 (Ceph RBD) ==="
+kubectl get pv | grep -E "NAME|${STORAGE_CLASS_NAME}" || log_warn "PVが見つかりません"
 echo ""
-echo "Grafana初期ログイン情報:"
+
+#==============================================================================
+# アクセス情報
+#==============================================================================
+log_info "=========================================="
+log_info "アクセス方法"
+log_info "=========================================="
+echo ""
+echo "Prometheus:"
+echo "  kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-kube-prom-prometheus 9090:9090"
+echo "  アクセス: http://localhost:9090"
+echo ""
+echo "Grafana:"
+echo "  kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-grafana 3000:80"
+echo "  アクセス: http://localhost:3000"
 echo "  ユーザー名: admin"
 echo "  パスワード: admin (初回ログイン後に変更してください)"
 echo ""
+echo "Alertmanager:"
+echo "  kubectl port-forward -n $PROMETHEUS_NAMESPACE svc/prometheus-stack-kube-prom-alertmanager 9093:9093"
+echo "  アクセス: http://localhost:9093"
+echo ""
 
-log_success "すべての処理が完了しました"
+log_success "=========================================="
+log_success "全デプロイメント完了!"
+log_success "=========================================="

@@ -1,8 +1,11 @@
 #!/bin/bash
 
 #==============================================================================
-# Prometheus Stack Deployment Wrapper Script
+# Prometheus Stack Deployment Wrapper Script (Fixed Version)
 # r760xs1からSSH経由でCeph情報を取得してデプロイメントスクリプトを実行
+# 修正内容:
+#   - デプロイスクリプト名を deploy-prometheus-fixed.sh に変更
+#   - StorageClass再作成オプションの説明を改善
 #==============================================================================
 
 set -e
@@ -42,12 +45,14 @@ OPTIONS:
     -u, --ceph-user USER     Ceph SSH接続ユーザー (デフォルト: root)
     -p, --ceph-port PORT     Ceph SSH接続ポート (デフォルト: 22)
     --skip-ceph             Ceph CSI Driverのデプロイをスキップ
+    --recreate-sc           既存のStorageClassを削除して再作成
     --dry-run               実際のデプロイを行わず、設定のみ表示
     -h, --help              このヘルプを表示
 
 Ceph情報はr760xs1からSSH経由で自動取得されます:
     - CephクラスタID: ssh r760xs1 'ceph fsid'
     - Cephモニター: ssh r760xs1 'ceph mon dump'
+    - Cephプール: kubernetes (存在しない場合は自動作成)
     - Ceph認証キー: ssh r760xs1 'ceph auth get-or-create client.kubernetes ...'
       (client.kubernetesユーザーが存在しない場合は自動作成)
 
@@ -62,6 +67,11 @@ SSH接続設定:
     $0 -e production
     $0 -e development --dry-run
     $0 -e sandbox -H r760xs1 -u root
+    $0 -e production --recreate-sc    # StorageClassを再作成
+
+修正内容:
+    - StorageClass作成ロジックの改善（Helmではなく手動作成に統一）
+    - デプロイスクリプト: deploy-prometheus-fixed.sh
 
 EOF
     exit 1
@@ -74,7 +84,8 @@ CEPH_USER="root"
 CEPH_PORT="22"
 SKIP_CEPH=false
 DRY_RUN=false
-DEPLOY_SCRIPT="./deploy-prometheus.sh"
+RECREATE_SC=false
+DEPLOY_SCRIPT="./deploy-prometheus-fixed.sh"
 CEPH_POOL="kubernetes"
 
 # 引数解析
@@ -100,6 +111,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_CEPH=true
             shift
             ;;
+        --recreate-sc)
+            RECREATE_SC=true
+            shift
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
@@ -107,12 +122,6 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             usage
             ;;
-
-        --recreate-sc)
-            RECREATE_SC=true
-            shift
-            ;;
-
         *)
             log_error "不明なオプション: $1"
             usage
@@ -134,6 +143,7 @@ fi
 # デプロイスクリプト存在確認
 if [[ ! -f "$DEPLOY_SCRIPT" ]]; then
     log_error "デプロイスクリプトが見つかりません: $DEPLOY_SCRIPT"
+    log_error "deploy-prometheus-fixed.sh が同じディレクトリに存在することを確認してください"
     exit 1
 fi
 
@@ -142,6 +152,7 @@ log_info "Prometheus Stack デプロイ - 環境情報取得"
 log_info "=========================================="
 log_info "環境: $ENVIRONMENT"
 log_info "Cephホスト: ${CEPH_USER}@${CEPH_HOST}:${CEPH_PORT}"
+log_info "デプロイスクリプト: $DEPLOY_SCRIPT"
 
 #==============================================================================
 # SSH接続確認
@@ -296,13 +307,12 @@ else
     DEPLOY_ARGS+=("--skip-ceph")
 fi
 
-if [[ "$DRY_RUN" == true ]]; then
-    DEPLOY_ARGS+=("--dry-run")
-fi
-
-# DEPLOY_ARGS に追加:
 if [[ "$RECREATE_SC" == true ]]; then
     DEPLOY_ARGS+=("--recreate-sc")
+fi
+
+if [[ "$DRY_RUN" == true ]]; then
+    DEPLOY_ARGS+=("--dry-run")
 fi
 
 log_info "実行コマンド: $DEPLOY_SCRIPT ${DEPLOY_ARGS[*]}"
