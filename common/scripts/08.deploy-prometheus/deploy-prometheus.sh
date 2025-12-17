@@ -381,6 +381,7 @@ parameters:
   pool: ${CEPH_POOL}
   imageFormat: "2"
   imageFeatures: layering
+  monitors: "172.16.200.11:6789,172.16.200.12:6789,172.16.200.13:6789,172.16.200.14:6789,172.16.200.15:6789"
   csi.storage.k8s.io/provisioner-secret-name: csi-rbd-secret
   csi.storage.k8s.io/provisioner-secret-namespace: kube-system
   csi.storage.k8s.io/controller-expand-secret-name: csi-rbd-secret
