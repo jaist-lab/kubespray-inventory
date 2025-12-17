@@ -4,7 +4,7 @@
 # Prometheus Stack Deployment Wrapper Script (Fixed Version)
 # r760xs1からSSH経由でCeph情報を取得してデプロイメントスクリプトを実行
 # 修正内容:
-#   - デプロイスクリプト名を deploy-prometheus-fixed.sh に変更
+#   - デプロイスクリプト名を deploy-prometheus.sh に変更
 #   - StorageClass再作成オプションの説明を改善
 #==============================================================================
 
@@ -71,7 +71,7 @@ SSH接続設定:
 
 修正内容:
     - StorageClass作成ロジックの改善（Helmではなく手動作成に統一）
-    - デプロイスクリプト: deploy-prometheus-fixed.sh
+    - デプロイスクリプト: deploy-prometheus.sh
 
 EOF
     exit 1
@@ -85,7 +85,7 @@ CEPH_PORT="22"
 SKIP_CEPH=false
 DRY_RUN=false
 RECREATE_SC=false
-DEPLOY_SCRIPT="./deploy-prometheus-fixed.sh"
+DEPLOY_SCRIPT="./deploy-prometheus.sh"
 CEPH_POOL="kubernetes"
 
 # 引数解析
@@ -143,7 +143,7 @@ fi
 # デプロイスクリプト存在確認
 if [[ ! -f "$DEPLOY_SCRIPT" ]]; then
     log_error "デプロイスクリプトが見つかりません: $DEPLOY_SCRIPT"
-    log_error "deploy-prometheus-fixed.sh が同じディレクトリに存在することを確認してください"
+    log_error "deploy-prometheus.sh が同じディレクトリに存在することを確認してください"
     exit 1
 fi
 
