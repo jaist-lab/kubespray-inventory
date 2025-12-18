@@ -230,21 +230,19 @@ if [[ "$SKIP_CEPH" == false ]]; then
     #--------------------------------------------------------------------------
     log_info "Step 1: Ceph認証情報のSecretを作成しています..."
     
-    # Base64エンコード
-    CEPH_USER_BASE64=$(echo -n "kubernetes" | base64)
-    
-    kubectl apply -f - << EOF
+# stringDataを使用してSecretを作成（自動的にBase64エンコードされる）
+cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Secret
 metadata:
   name: csi-rbd-secret
   namespace: kube-system
 type: Opaque
-data:
-  userID: ${CEPH_USER_BASE64}
+stringData:
+  userID: kubernetes
   userKey: ${CEPH_KEY}
 EOF
-    
+
     log_success "Secret 'csi-rbd-secret' を作成しました (namespace: kube-system)"
     
     #--------------------------------------------------------------------------
