@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# 既存のリソースをクリーンアップ
-kubectl delete service cadvisor -n kube-system --ignore-not-found
-kubectl delete servicemonitor cadvisor -n monitoring --ignore-not-found
-kubectl delete daemonset cadvisor -n kube-system --ignore-not-found
-
 # ServiceAccountを作成
 kubectl create serviceaccount cadvisor -n kube-system
 
