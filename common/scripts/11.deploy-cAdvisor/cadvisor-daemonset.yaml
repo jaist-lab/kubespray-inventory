@@ -24,6 +24,12 @@ spec:
       - key: node-role.kubernetes.io/control-plane
         effect: NoSchedule
       
+      # 自動更新戦略
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1
+      
       # ホストネットワークとPID名前空間を使用
       hostNetwork: true
       hostPID: true
@@ -100,12 +106,6 @@ spec:
           initialDelaySeconds: 15
           timeoutSeconds: 5
           periodSeconds: 5
-      
-      # 自動更新戦略
-      updateStrategy:
-        type: RollingUpdate
-        rollingUpdate:
-          maxUnavailable: 1
       
       # ノード選択（必要に応じて）
       nodeSelector:
