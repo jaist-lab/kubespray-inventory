@@ -7,6 +7,11 @@ metadata:
     app: cadvisor
     component: monitoring
 spec:
+  # 自動更新戦略 (DaemonSet spec直下に配置)
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   selector:
     matchLabels:
       name: cadvisor
@@ -23,17 +28,10 @@ spec:
         effect: NoSchedule
       - key: node-role.kubernetes.io/control-plane
         effect: NoSchedule
-      
-      # 自動更新戦略
-      updateStrategy:
-        type: RollingUpdate
-        rollingUpdate:
-          maxUnavailable: 1
-      
       # ホストネットワークとPID名前空間を使用
       hostNetwork: true
       hostPID: true
-      
+
       containers:
       - name: cadvisor
         image: gcr.io/cadvisor/cadvisor:v0.50.0
@@ -41,7 +39,6 @@ spec:
         - containerPort: 8080
           name: http
           protocol: TCP
-        
         # リソース制限を設定
         resources:
           requests:
@@ -50,12 +47,12 @@ spec:
           limits:
             cpu: 300m
             memory: 512Mi
-        
+
         # セキュリティコンテキスト
         securityContext:
           privileged: true
           runAsUser: 0
-        
+
         # コマンドライン引数でメトリクス設定を最適化
         args:
         - --logtostderr
@@ -68,7 +65,7 @@ spec:
         - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa
         - --store_container_labels=false
         - --whitelisted_container_labels=io.kubernetes.container.name,io.kubernetes.pod.name,io.kubernetes.pod.namespace
-        
+
         volumeMounts:
         - name: rootfs
           mountPath: /rootfs
@@ -88,7 +85,6 @@ spec:
         - name: proc
           mountPath: /host/proc
           readOnly: true
-        
         # ヘルスチェック設定
         livenessProbe:
           httpGet:
@@ -98,7 +94,7 @@ spec:
           timeoutSeconds: 5
           periodSeconds: 10
           failureThreshold: 3
-        
+
         readinessProbe:
           httpGet:
             path: /healthz
@@ -106,11 +102,10 @@ spec:
           initialDelaySeconds: 15
           timeoutSeconds: 5
           periodSeconds: 5
-      
       # ノード選択（必要に応じて）
       nodeSelector:
         kubernetes.io/os: linux
-      
+
       volumes:
       - name: rootfs
         hostPath:
@@ -136,14 +131,13 @@ spec:
         hostPath:
           path: /proc
           type: Directory
-
 ---
 # ServiceMonitor for Prometheus integration
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: cadvisor
-  namespace: kube-system
+  namespace: monitoring
   labels:
     app: cadvisor
     component: monitoring
@@ -151,12 +145,14 @@ spec:
   selector:
     matchLabels:
       app: cadvisor
+  namespaceSelector:
+    matchNames:
+    - kube-system
   endpoints:
   - port: http
     path: /metrics
     interval: 30s
     scrapeTimeout: 10s
-
 ---
 # Service for cAdvisor
 apiVersion: v1
