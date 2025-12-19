@@ -147,7 +147,7 @@ spec:
       app: cadvisor
   namespaceSelector:
     matchNames:
-    - kube-system
+    - monitoring
   endpoints:
   - port: http
     path: /metrics
