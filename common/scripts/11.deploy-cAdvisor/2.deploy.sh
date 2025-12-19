@@ -4,7 +4,7 @@
 kubectl create serviceaccount cadvisor -n kube-system
 
 # 修正済みYAMLを適用
-kubectl apply -f cadvisor-daemonset-fixed.yaml
+kubectl apply -f cadvisor-daemonset.yaml
 
 # デプロイ状況を確認
 kubectl get daemonset cadvisor -n kube-system
