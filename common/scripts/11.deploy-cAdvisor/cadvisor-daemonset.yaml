@@ -1,0 +1,177 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cadvisor
+  namespace: kube-system
+  labels:
+    app: cadvisor
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      name: cadvisor
+  template:
+    metadata:
+      labels:
+        name: cadvisor
+        app: cadvisor
+    spec:
+      # GPU専用ノードでも稼働させるためのToleration
+      tolerations:
+      - key: dedicated
+        value: gpu-compute
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      
+      # ホストネットワークとPID名前空間を使用
+      hostNetwork: true
+      hostPID: true
+      
+      containers:
+      - name: cadvisor
+        image: gcr.io/cadvisor/cadvisor:v0.50.0
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        
+        # リソース制限を設定
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 300m
+            memory: 512Mi
+        
+        # セキュリティコンテキスト
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        
+        # コマンドライン引数でメトリクス設定を最適化
+        args:
+        - --logtostderr
+        - --v=0
+        - --port=8080
+        - --housekeeping_interval=30s
+        - --max_housekeeping_interval=35s
+        - --event_storage_event_limit=default=0
+        - --event_storage_age_limit=default=0
+        - --disable_metrics=accelerator,cpu_topology,disk,memory_numa,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa
+        - --store_container_labels=false
+        - --whitelisted_container_labels=io.kubernetes.container.name,io.kubernetes.pod.name,io.kubernetes.pod.namespace
+        
+        volumeMounts:
+        - name: rootfs
+          mountPath: /rootfs
+          readOnly: true
+        - name: var-run
+          mountPath: /var/run
+          readOnly: true
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: docker
+          mountPath: /var/lib/docker
+          readOnly: true
+        - name: dev-disk
+          mountPath: /dev/disk
+          readOnly: true
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        
+        # ヘルスチェック設定
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+          periodSeconds: 5
+      
+      # 自動更新戦略
+      updateStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 1
+      
+      # ノード選択（必要に応じて）
+      nodeSelector:
+        kubernetes.io/os: linux
+      
+      volumes:
+      - name: rootfs
+        hostPath:
+          path: /
+          type: Directory
+      - name: var-run
+        hostPath:
+          path: /var/run
+          type: Directory
+      - name: sys
+        hostPath:
+          path: /sys
+          type: Directory
+      - name: docker
+        hostPath:
+          path: /var/lib/docker
+          type: DirectoryOrCreate
+      - name: dev-disk
+        hostPath:
+          path: /dev/disk
+          type: Directory
+      - name: proc
+        hostPath:
+          path: /proc
+          type: Directory
+
+---
+# ServiceMonitor for Prometheus integration
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cadvisor
+  namespace: kube-system
+  labels:
+    app: cadvisor
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: cadvisor
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+
+---
+# Service for cAdvisor
+apiVersion: v1
+kind: Service
+metadata:
+  name: cadvisor
+  namespace: kube-system
+  labels:
+    app: cadvisor
+    component: monitoring
+spec:
+  selector:
+    name: cadvisor
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  type: ClusterIP
