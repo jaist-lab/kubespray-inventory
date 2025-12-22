@@ -4,15 +4,17 @@ metadata:
   name: grafana-ingress
   namespace: monitoring
   annotations:
-    # Nginx Ingress Controllerを使用する場合
-    kubernetes.io/ingress.class: "nginx"
-    # 大きなダッシュボード用にタイムアウトを延長
+    # Proxy設定
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    # WebSocket対応
+    nginx.ingress.kubernetes.io/websocket-services: "prometheus-stack-grafana"
 spec:
+  ingressClassName: nginx
   rules:
-  - host: grafana.jaist.ac.jp  # 適切なホスト名に変更
+  - host: grafana.production.jaist.ac.jp
     http:
       paths:
       - path: /
