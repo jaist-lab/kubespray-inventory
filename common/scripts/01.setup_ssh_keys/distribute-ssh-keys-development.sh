@@ -1,7 +1,7 @@
 #!/bin/bash
 # Development環境 SSH公開鍵配布
 
-NODES="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 rtxsv1"
+NODES="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02"
 USER="jaistlab"
 PASSWORD='j4157Adm!n'  # 初回接続用パスワード
 

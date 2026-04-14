@@ -79,18 +79,8 @@ case $ENV_CHOICE in
         fi
         ;;
     2)
-        check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
-        export KUBECONFIG=~/.kube/config-development
-
-        # rtxsv1にTaint設定
-        echo "rtxsv1にTaint設定中..."
-        if kubectl taint node rtxsv1 dedicated=gpu-compute:NoSchedule --overwrite; then
-            echo -e "${GREEN}✅ rtxsv1: Taint設定成功${NC}"
-            kubectl describe node rtxsv1 | grep -A 5 Taints
-        else
-            echo -e "${RED}❌ rtxsv1: Taint設定失敗${NC}"
-            exit 1
-        fi
+        echo -e "${YELLOW}Development環境にはGPUノードが存在しません（rtxsv1は除外済み）${NC}"
+        exit 0
         ;;
     *)
         echo "無効な選択です"

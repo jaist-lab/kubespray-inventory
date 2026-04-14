@@ -62,7 +62,7 @@ case $ENV_CHOICE in
         ENV_NAME="development"
         export KUBECONFIG=~/.kube/config-development
         CONFIG_FILE="kubelet-csr-approver-config-development.yaml"
-        NODE_IPS="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 rtxsv1"
+        NODE_IPS="dev-master01 dev-master02 dev-master03 dev-node01 dev-node02"
         ;;
     3)
         ENV_NAME="sandbox"

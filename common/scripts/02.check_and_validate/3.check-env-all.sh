@@ -15,7 +15,7 @@ done
 echo " "
 
 echo "*** Development ***"
-for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 rtxsv1 ; do
+for host in dev-master01 dev-master02 dev-master03 dev-node01 dev-node02 ; do
     echo "=== $host ==="
     echo -n "   swap     :"
     ssh jaistlab@$host "free -h | grep -i swap"

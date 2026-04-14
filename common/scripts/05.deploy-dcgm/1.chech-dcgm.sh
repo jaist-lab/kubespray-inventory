@@ -63,11 +63,8 @@ case $ENV_CHOICE in
         GPU_NODE_IPS=("172.16.100.31" "172.16.100.32")
         ;;
     2)
-        check_environment "Development" "${KUBESPRAY_DIR}/inventory/development"
-        export KUBECONFIG=~/.kube/config-development
-        # Developmentの対象ノード
-        GPU_NODES=("rtxsv1")
-        GPU_NODE_IPS=("172.16.100.41" )
+        echo -e "${YELLOW}Development環境にはGPUノードが存在しません（rtxsv1は除外済み）${NC}"
+        exit 0
         ;;
     *)
         echo -e "${RED}無効な選択肢です。1または2を選択してください。${NC}"

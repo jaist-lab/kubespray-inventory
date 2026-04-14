@@ -34,12 +34,8 @@ case $ENV_CHOICE in
         ENV_NAME="Production"
         ;;
     2)
-        echo -e "${GREEN}Development環境を選択${NC}"
-        export KUBECONFIG=~/.kube/config-development
-        GPU_NODES=("rtxsv1")
-        CONTROL_NODES=("dev-master01" "dev-master02" "dev-master03")
-        WORKER_NODES=("dev-node01" "dev-node02")
-        ENV_NAME="Development"
+        echo -e "${YELLOW}Development環境にはGPUノードが存在しません（rtxsv1は除外済み）${NC}"
+        exit 0
         ;;
     *)
         echo -e "${RED}無効な選択肢です。1または2を選択してください。${NC}"
