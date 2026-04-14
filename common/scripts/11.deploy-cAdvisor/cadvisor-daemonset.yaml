@@ -31,6 +31,7 @@ spec:
         - --event_storage_age_limit=default=0
         - --store_container_labels=false
         - --global_housekeeping_interval=30s
+        - --port=8081
         ports:
         - containerPort: 8081 # 8080 → 8081 に変更(Cephとのポート競合回避のため)
           name: http
