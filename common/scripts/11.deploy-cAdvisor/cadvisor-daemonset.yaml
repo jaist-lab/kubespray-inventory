@@ -31,11 +31,11 @@ spec:
         - --event_storage_age_limit=default=0
         - --store_container_labels=false
         - --global_housekeeping_interval=30s
-        - --port=8081
+        - --port=8082
         ports:
-        - containerPort: 8081 # 8080 → 8081 に変更(Cephとのポート競合回避のため)
+        - containerPort: 8082 # 8080 → 8082 に変更(Ceph:8080, nginx:8081 とのポート競合回避のため)
           name: http
-          hostPort: 8081
+          hostPort: 8082
           protocol: TCP
         resources:
           requests:
