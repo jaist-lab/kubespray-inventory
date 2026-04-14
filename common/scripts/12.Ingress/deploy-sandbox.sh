@@ -41,10 +41,13 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
 
 # Step 4: Podの起動待機
 echo -e "\n${YELLOW}[Step 4]${NC} Ingress Controller Podの起動を待機..."
-kubectl wait --namespace ingress-nginx \
+if ! kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
+  --timeout=240s; then
+    echo -e "${YELLOW}⚠️ 一部のPodが起動待機中です。状態を確認してください。${NC}"
+    kubectl get pods -n ingress-nginx -o wide
+fi
 
 # Step 5: 状態確認
 echo -e "\n${YELLOW}[Step 5]${NC} Ingress Controllerの状態確認..."
