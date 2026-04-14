@@ -32,7 +32,7 @@ spec:
         - --store_container_labels=false
         - --global_housekeeping_interval=30s
         ports:
-        - containerPort: 8080
+        - containerPort: 8081 # 8080 → 8081 に変更(Cephとのポート競合回避のため)
           name: http
           hostPort: 8080
           protocol: TCP
