@@ -61,9 +61,9 @@ if ! argocd app list >/dev/null 2>&1; then
     echo "ログインが必要です"
     read -p "ユーザー名 [admin]: " USERNAME
     USERNAME=${USERNAME:-admin}
-    read -sp "パスワード [jaileon02]: " PASSWORD
+    read -sp "パスワード [j4157Adm!n]: " PASSWORD
     echo
-    PASSWORD=${PASSWORD:-jaileon02}
+    PASSWORD=${PASSWORD:-j4157Adm!n}
     
     argocd login "$SERVER" --username "$USERNAME" --password "$PASSWORD" --insecure
 fi

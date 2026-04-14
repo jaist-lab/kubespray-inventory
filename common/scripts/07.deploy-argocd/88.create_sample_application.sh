@@ -93,9 +93,9 @@ echo "=== 認証情報入力 ==="
 read -p "ユーザー名 [admin]: " USERNAME
 USERNAME=${USERNAME:-admin}
 
-read -sp "パスワード [jaileon02]: " PASSWORD
+read -sp "パスワード [j4157Adm!n]: " PASSWORD
 echo
-PASSWORD=${PASSWORD:-jaileon02}
+PASSWORD=${PASSWORD:-j4157Adm!n}
 
 # ArgoCD ログイン
 echo ""

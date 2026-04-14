@@ -51,7 +51,7 @@ k8s_env production
 ./4.set_password.sh
 ```
 
-デフォルトパスワード: `jaileon02`
+デフォルトパスワード: `j4157Adm!n`
 
 ### 5. 動作確認
 ```bash
@@ -135,7 +135,7 @@ k8s_env production
 # ログイン（環境に応じて自動検出）
 NODE_IP=$(kubectl get nodes --no-headers -o custom-columns=IP:.status.addresses[0].address | head -1)
 HTTPS_PORT=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')
-argocd login $NODE_IP:$HTTPS_PORT --username admin --password jaileon02 --insecure
+argocd login $NODE_IP:$HTTPS_PORT --username admin --password j4157Adm!n --insecure
 
 # アプリケーション作成
 argocd app create guestbook \
@@ -189,7 +189,7 @@ kubectl describe svc argocd-server -n argocd
 
 - **Web UI**: https://<NODE_IP>:32443
 - **ユーザー名**: admin
-- **パスワード**: jaileon02（デフォルト）
+- **パスワード**: j4157Adm!n（デフォルト）
 
 ## 注意事項
 

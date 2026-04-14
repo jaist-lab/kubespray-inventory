@@ -33,7 +33,7 @@ fi
 # 新しいパスワード設定
 echo ""
 echo "=== 新しいパスワード設定 ==="
-NEW_PASSWORD="jaileon02"
+NEW_PASSWORD="j4157Adm!n"
 
 # bcryptハッシュ生成（改良版）
 echo "bcryptハッシュ生成中..."
