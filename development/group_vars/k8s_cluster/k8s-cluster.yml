@@ -10,6 +10,7 @@ container_manager: containerd
 
 # Kube-proxy
 kube_proxy_mode: ipvs
+kube_proxy_metrics_bind_address: 0.0.0.0:10249 # Prometheus用にメトリクスを公開
 
 # CNI plugin
 kube_network_plugin: calico
