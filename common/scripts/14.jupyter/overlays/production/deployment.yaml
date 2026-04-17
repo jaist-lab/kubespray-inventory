@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter-gpu-notebook
+  namespace: ml-experiments
+  labels:
+    app: jupyter-gpu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyter-gpu
+  template:
+    metadata:
+      labels:
+        app: jupyter-gpu
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      tolerations:
+      - key: dedicated
+        operator: Equal
+        value: gpu-compute
+        effect: NoSchedule
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 0
+
+      initContainers:
+      - name: setup-workspace
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          apt-get update && apt-get install -y git curl
+          pip install numpy pandas
+          python /scripts/sample-data-generator.py
+          cp /scripts/start-jupyter.sh /workspace/start-jupyter.sh
+          chmod +x /workspace/start-jupyter.sh
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: startup-scripts
+          mountPath: /scripts
+
+      containers:
+      - name: jupyter
+        image: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash"]
+        args: ["/workspace/start-jupyter.sh"]
+
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "32Gi"
+            cpu: "8"
+          requests:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "4"
+
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        - name: JUPYTER_ENABLE_LAB
+          value: "yes"
+
+        ports:
+        - containerPort: 8888
+          name: jupyter
+        - containerPort: 6006
+          name: tensorboard
+        - containerPort: 8050
+          name: dash
+
+        livenessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: datasets
+          mountPath: /workspace/data/shared
+        - name: dshm
+          mountPath: /dev/shm
+        - name: startup-scripts
+          mountPath: /scripts
+
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: jupyter-workspace-pvc
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: jupyter-datasets-pvc
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 8Gi
+      - name: startup-scripts
+        configMap:
+          name: jupyter-startup-config
+          defaultMode: 0755

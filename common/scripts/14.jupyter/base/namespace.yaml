@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-experiments
+  labels:
+    name: ml-experiments
+    app: jupyter-gpu

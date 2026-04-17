@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyter-gpu-notebook
+  namespace: ml-experiments
+  labels:
+    app: jupyter-gpu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jupyter-gpu
+  template:
+    metadata:
+      labels:
+        app: jupyter-gpu
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 0
+
+      initContainers:
+      - name: setup-workspace
+        image: python:3.11-slim
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          apt-get update && apt-get install -y git curl
+          pip install numpy pandas torch --index-url https://download.pytorch.org/whl/cpu
+          python /scripts/sample-data-generator.py
+          cp /scripts/start-jupyter.sh /workspace/start-jupyter.sh
+          chmod +x /workspace/start-jupyter.sh
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: startup-scripts
+          mountPath: /scripts
+
+      containers:
+      - name: jupyter
+        image: python:3.11
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash"]
+        args: ["/workspace/start-jupyter.sh"]
+
+        resources:
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+
+        env:
+        - name: JUPYTER_ENABLE_LAB
+          value: "yes"
+
+        ports:
+        - containerPort: 8888
+          name: jupyter
+        - containerPort: 6006
+          name: tensorboard
+        - containerPort: 8050
+          name: dash
+
+        livenessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: startup-scripts
+          mountPath: /scripts
+
+      volumes:
+      - name: workspace
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: startup-scripts
+        configMap:
+          name: jupyter-startup-config
+          defaultMode: 0755
