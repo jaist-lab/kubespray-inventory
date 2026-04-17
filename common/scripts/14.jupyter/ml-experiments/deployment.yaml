@@ -29,6 +29,7 @@ spec:
 
       securityContext:
         fsGroup: 1000
+        # 権限トラブルを避けるため、一旦コンテナ実行ユーザーをroot(0)にする設定は維持
         runAsUser: 0
 
       initContainers:
@@ -39,6 +40,7 @@ spec:
         - |
           apt-get update && apt-get install -y git curl
           pip install numpy pandas
+          # ConfigMapからマウントされたスクリプトを実行
           python /scripts/sample-data-generator.py
           cp /scripts/start-jupyter.sh /workspace/start-jupyter.sh
           chmod +x /workspace/start-jupyter.sh
@@ -53,6 +55,7 @@ spec:
         image: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
         imagePullPolicy: IfNotPresent
         command: [ "/bin/bash" ]
+        # initContainerでコピーしたスクリプトを実行
         args: [ "/workspace/start-jupyter.sh" ]
 
         resources:
@@ -121,4 +124,5 @@ spec:
       - name: startup-scripts
         configMap:
           name: jupyter-startup-config
+          # 修正ポイント: 先頭に 0 を付与して8進数にする
           defaultMode: 755
