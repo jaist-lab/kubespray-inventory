@@ -78,7 +78,8 @@ echo -e "\n${YELLOW}[Step 7]${NC} 全Ingressをデプロイ..."
 sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' grafana-ingress.yaml     | kubectl apply -f -
 sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' prometheus-ingress.yaml  | kubectl apply -f -
 sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' alertmanager-ingress.yaml | kubectl apply -f -
-sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' argocd-ingress.yaml      | kubectl apply -f -
+sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' argocd-ingress.yaml            | kubectl apply -f -
+sed 's/\.production\.jaist\.ac\.jp/.development.jaist.ac.jp/g' argo-workflows-ingress.yaml  | kubectl apply -f -
 
 # 設定反映待機
 echo "設定反映を待機中..."
@@ -91,6 +92,9 @@ kubectl get ingress -n monitoring
 echo ""
 echo "--- argocd namespace ---"
 kubectl get ingress -n argocd
+echo ""
+echo "--- argo namespace ---"
+kubectl get ingress -n argo
 
 # Step 9: NodeのIP取得
 echo -e "\n${YELLOW}[Step 9]${NC} NodeのIPアドレス取得..."
@@ -101,7 +105,7 @@ echo "dev-node02 IP: $NODE02_IP"
 
 # Step 10: アクセステスト
 echo -e "\n${YELLOW}[Step 10]${NC} アクセステスト..."
-for HOST in grafana.development.jaist.ac.jp prometheus.development.jaist.ac.jp alertmanager.development.jaist.ac.jp; do
+for HOST in grafana.development.jaist.ac.jp prometheus.development.jaist.ac.jp alertmanager.development.jaist.ac.jp argo-workflows.development.jaist.ac.jp; do
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST" http://$NODE01_IP)
     if [ "$HTTP_CODE" == "200" ] || [ "$HTTP_CODE" == "302" ]; then
         echo -e "${GREEN}✓${NC} $HOST: HTTP $HTTP_CODE"
@@ -131,10 +135,12 @@ echo "$NODE01_IP  grafana.development.jaist.ac.jp"
 echo "$NODE01_IP  prometheus.development.jaist.ac.jp"
 echo "$NODE01_IP  alertmanager.development.jaist.ac.jp"
 echo "$NODE01_IP  argocd.development.jaist.ac.jp"
+echo "$NODE01_IP  argo-workflows.development.jaist.ac.jp"
 echo ""
 echo "アクセスURL:"
-echo "  Grafana      : http://grafana.development.jaist.ac.jp"
-echo "  Prometheus   : http://prometheus.development.jaist.ac.jp"
-echo "  Alertmanager : http://alertmanager.development.jaist.ac.jp"
-echo "  ArgoCD       : https://argocd.development.jaist.ac.jp"
+echo "  Grafana        : http://grafana.development.jaist.ac.jp"
+echo "  Prometheus     : http://prometheus.development.jaist.ac.jp"
+echo "  Alertmanager   : http://alertmanager.development.jaist.ac.jp"
+echo "  ArgoCD         : https://argocd.development.jaist.ac.jp"
+echo "  Argo Workflows : http://argo-workflows.development.jaist.ac.jp"
 echo ""
