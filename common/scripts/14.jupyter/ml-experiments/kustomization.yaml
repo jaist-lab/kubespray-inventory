@@ -5,6 +5,14 @@ namespace: ml-experiments
 
 resources:
 - namespace.yaml
-- configmap-common.yaml
+- storage.yaml
+- configmap.yaml
 - notebook-samples.yaml
+- deployment.yaml
 - service.yaml
+- ingress.yaml
+
+labels:
+- pairs:
+    app: jupyter-gpu
+    environment: production

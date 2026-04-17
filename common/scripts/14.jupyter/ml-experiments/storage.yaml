@@ -10,11 +10,10 @@ spec:
   capacity:
     storage: 100Gi
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: /mnt/jupyter-workspace
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -26,11 +25,10 @@ metadata:
 spec:
   storageClassName: manual
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 100Gi
-
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -44,11 +42,10 @@ spec:
   capacity:
     storage: 200Gi
   accessModes:
-    - ReadWriteMany
+  - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   hostPath:
     path: /mnt/datasets
-
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -60,7 +57,7 @@ metadata:
 spec:
   storageClassName: manual
   accessModes:
-    - ReadWriteMany
+  - ReadWriteMany
   resources:
     requests:
       storage: 200Gi

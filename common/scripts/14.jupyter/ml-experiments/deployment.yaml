@@ -34,7 +34,7 @@ spec:
       initContainers:
       - name: setup-workspace
         image: python:3.11-slim
-        command: ["/bin/bash", "-c"]
+        command: [ "/bin/bash", "-c" ]
         args:
         - |
           apt-get update && apt-get install -y git curl
@@ -52,8 +52,8 @@ spec:
       - name: jupyter
         image: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
         imagePullPolicy: IfNotPresent
-        command: ["/bin/bash"]
-        args: ["/workspace/start-jupyter.sh"]
+        command: [ "/bin/bash" ]
+        args: [ "/workspace/start-jupyter.sh" ]
 
         resources:
           limits:
@@ -121,4 +121,4 @@ spec:
       - name: startup-scripts
         configMap:
           name: jupyter-startup-config
-          defaultMode: 0755
+          defaultMode: 755

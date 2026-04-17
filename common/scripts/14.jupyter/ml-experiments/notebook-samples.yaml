@@ -13,9 +13,9 @@ data:
        "cell_type": "markdown",
        "metadata": {},
        "source": [
-        "# クイックスタート - 環境確認\n",
+        "# クイックスタート - GPU環境確認\n",
         "\n",
-        "このNotebookでは、環境の基本確認を行います。"
+        "このNotebookでは、GPU環境の基本確認を行います。"
        ]
       },
       {
@@ -30,14 +30,12 @@ data:
         "\n",
         "print(f\"PyTorch: {torch.__version__}\")\n",
         "print(f\"CUDA available: {torch.cuda.is_available()}\")\n",
+        "print(f\"GPU count: {torch.cuda.device_count()}\")\n",
         "\n",
         "if torch.cuda.is_available():\n",
-        "    print(f\"GPU count: {torch.cuda.device_count()}\")\n",
         "    for i in range(torch.cuda.device_count()):\n",
         "        print(f\"GPU {i}: {torch.cuda.get_device_name(i)}\")\n",
-        "        print(f\"  Memory: {torch.cuda.get_device_properties(i).total_memory / 1024**3:.1f} GB\")\n",
-        "else:\n",
-        "    print(\"CPU mode\")"
+        "        print(f\"  Memory: {torch.cuda.get_device_properties(i).total_memory / 1024**3:.1f} GB\")"
        ]
       },
       {
@@ -47,8 +45,6 @@ data:
        "outputs": [],
        "source": [
         "device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n",
-        "print(f\"Device: {device}\")\n",
-        "\n",
         "size = 2048\n",
         "a = torch.randn(size, size, device=device)\n",
         "b = torch.randn(size, size, device=device)\n",
@@ -56,12 +52,38 @@ data:
         "import time\n",
         "start = time.time()\n",
         "c = torch.matmul(a, b)\n",
-        "if device.type == 'cuda':\n",
-        "    torch.cuda.synchronize()\n",
+        "torch.cuda.synchronize()\n",
         "elapsed = time.time() - start\n",
         "\n",
         "gflops = (2 * size**3) / (elapsed * 1e9)\n",
-        "print(f\"FP32 {size}x{size}: {elapsed:.4f}s, {gflops:.1f} GFLOPS\")"
+        "print(f\"FP32 {size}x{size}: {elapsed:.4f}s, {gflops:.1f} GFLOPS\")\n",
+        "\n",
+        "a_bf16 = a.to(torch.bfloat16)\n",
+        "b_bf16 = b.to(torch.bfloat16)\n",
+        "start = time.time()\n",
+        "c_bf16 = torch.matmul(a_bf16, b_bf16)\n",
+        "torch.cuda.synchronize()\n",
+        "elapsed_bf16 = time.time() - start\n",
+        "bf16_gflops = (2 * size**3) / (elapsed_bf16 * 1e9)\n",
+        "print(f\"BF16 {size}x{size}: {elapsed_bf16:.4f}s, {bf16_gflops:.1f} GFLOPS\")"
+       ]
+      },
+      {
+       "cell_type": "code",
+       "execution_count": null,
+       "metadata": {},
+       "outputs": [],
+       "source": [
+        "if torch.cuda.is_available():\n",
+        "    props = torch.cuda.get_device_properties(0)\n",
+        "    total = props.total_memory / 1024**3\n",
+        "    allocated = torch.cuda.memory_allocated(0) / 1024**3\n",
+        "    print(f\"GPU: {props.name}\")\n",
+        "    print(f\"Total Memory: {total:.1f} GB\")\n",
+        "    print(f\"Allocated: {allocated:.2f} GB\")\n",
+        "    print(f\"Compute Capability: {props.major}.{props.minor}\")\n",
+        "    print(f\"SMs: {props.multi_processor_count}\")\n",
+        "print(\"\\nH100 NVL環境確認完了\")"
        ]
       }
      ],
