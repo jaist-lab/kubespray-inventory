@@ -125,4 +125,4 @@ spec:
         configMap:
           name: jupyter-startup-config
           # 修正ポイント: 先頭に 0 を付与して8進数にする
-          defaultMode: 755
+          defaultMode: 0755
