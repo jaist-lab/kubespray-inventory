@@ -17,7 +17,7 @@ bin_dir: /usr/local/bin
 #   port: 1234
 
 ## Internal loadbalancers for apiservers
-# loadbalancer_apiserver_localhost: true
+loadbalancer_apiserver_localhost: false
 # valid options are "nginx" or "haproxy"
 # loadbalancer_apiserver_type: nginx  # valid values "nginx" or "haproxy"
 
@@ -127,10 +127,10 @@ kube_webhook_token_auth_url_skip_tls_verify: false
 ntp_enabled: false
 ntp_manage_config: false
 ntp_servers:
-  - "0.pool.ntp.org iburst"
-  - "1.pool.ntp.org iburst"
-  - "2.pool.ntp.org iburst"
-  - "3.pool.ntp.org iburst"
+- "0.pool.ntp.org iburst"
+- "1.pool.ntp.org iburst"
+- "2.pool.ntp.org iburst"
+- "3.pool.ntp.org iburst"
 
 ## Used to control no_log attribute
 unsafe_show_logs: false
@@ -146,6 +146,6 @@ ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
 # APIサーバーのみ外部アクセスIPを使用
 supplementary_addresses_in_ssl_keys:
-  - 172.16.100.101
-  - 172.16.100.102
-  - 172.16.100.103
+- 172.16.100.101
+- 172.16.100.102
+- 172.16.100.103
